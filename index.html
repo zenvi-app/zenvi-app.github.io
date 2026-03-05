@@ -8,10 +8,14 @@
 
 <title>India Price Index | Sir Aditya</title>
 
+<link rel="manifest" href="manifest.json">
+
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
 <link rel="stylesheet" href="style.css">
 
 </head>
@@ -19,14 +23,21 @@
 
 <body>
 
+
 <header>
 
+<div class="logo">
+<img src="assets/logo.png" alt="India Price Index Logo">
+</div>
+
 <div class="location">
+
 <span class="material-icons" style="font-size:18px;margin-right:5px;">place</span>
 
 <span id="loc-text">Bettiah, Bihar</span>
 
 <span id="update-loc">Update</span>
+
 </div>
 
 
@@ -34,28 +45,21 @@
 
 <span class="material-icons" style="color:#64748b;margin-right:8px;">search</span>
 
-<input
-type="text"
-id="searchInput"
-placeholder="Search Mandi or Items..."
->
+<input type="text" id="searchInput" placeholder="Search Mandi or Items...">
 
 </div>
 
 </header>
 
 
-<!-- Live update indicator -->
-<div style="font-size:11px;color:#2ecc71;padding:5px 15px;">
+<div class="live-update">
 ● Live Update: <span id="last-update-time">Loading...</span>
 </div>
 
 
-<!-- Map -->
 <div id="mapContainer"></div>
 
 
-<!-- Category filter -->
 <div class="categories" id="categoryBar">
 
 <div class="chip active">All Items</div>
@@ -69,19 +73,14 @@ placeholder="Search Mandi or Items..."
 </div>
 
 
-<!-- Items list -->
 <div class="items-grid" id="itemsGrid"></div>
 
 
-<!-- AI button -->
 <div class="ai-btn" id="aiTrigger">
-
 <span class="material-icons">smart_toy</span>
-
 </div>
 
 
-<!-- Bottom navigation -->
 <nav class="bottom-nav">
 
 <div class="nav-item active">
