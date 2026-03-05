@@ -1,7 +1,7 @@
 {
   "id": "india-price-index",
-  "name": "Local Market",
-"short_name": "LocalMarket",
+  "name": "KnowMarket",
+"short_name": "KnowMarket",
   "description": "Real-time mandi prices across India with live map and updates.",
 
   "start_url": "/",
