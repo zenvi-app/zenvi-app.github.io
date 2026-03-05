@@ -4,135 +4,149 @@ const API_URL = "https://api.sheety.co/e6ca57df3adfe2f877322d0ded669751/marketPr
 let marketData = [];
 
 
-// ===== 2. Cards Render Function =====
-function renderItems(data) {
+// ===== 2. Render Cards =====
+function renderItems(data){
 
-    const grid = document.getElementById("itemsGrid");
-    grid.innerHTML = "";
+const grid = document.getElementById("itemsGrid");
+grid.innerHTML = "";
 
-    if (!data || data.length === 0) {
+if(!data || data.length === 0){
 
-        grid.innerHTML =
-        `<div style="text-align:center;padding:40px;color:#b2bec3;">
-        Data load ho raha hai... 🔄
-        </div>`;
+grid.innerHTML =
+`<div style="text-align:center;padding:40px;color:#b2bec3;">
+Data load ho raha hai... 🔄
+</div>`;
 
-        return;
-    }
+return;
 
-    data.forEach(item => {
+}
 
-        grid.innerHTML += `
-        <div class="card">
+data.forEach(item=>{
 
-            <div class="item-info">
-                <span class="title">${item.name}</span>
-                <small style="color:#b2bec3;">${item.category}</small>
-            </div>
+grid.innerHTML += `
+<div class="card">
 
-            <div class="price-section">
-                <span class="price-val">₹${item.price}</span>
-                <small class="unit-text">/${item.unit}</small>
-                <div class="trend-${item.type || "down"}">
-                ${item.trend || "Stable"}
-                </div>
-            </div>
+<div class="item-info">
+<span class="title">${item.name}</span>
+<small style="color:#b2bec3;">${item.category}</small>
+</div>
 
-        </div>
-        `;
+<div class="price-section">
+<span class="price-val">₹${item.price}</span>
+<small class="unit-text">/${item.unit}</small>
+<div class="trend-${item.type || "down"}">
+${item.trend || "Stable"}
+</div>
+</div>
+
+</div>
+`;
+
+});
+
+
+// ===== Update Live Time =====
 const now = new Date();
 
 document.getElementById("last-update-time").innerText =
 now.toLocaleTimeString();
-    });
 
 }
 
 
-// ===== 3. Fetch Data From Google Sheet =====
+
+// ===== 3. Fetch Google Sheet Data =====
 async function fetchLivePrices(){
 
-    try{
+try{
 
-        const response = await fetch(API_URL);
-        const json = await response.json();
+const response = await fetch(API_URL);
+const json = await response.json();
 
-        marketData = json.marketPricesTemplate;
+marketData = json.marketPricesTemplate;
 
-        renderItems(marketData);
+renderItems(marketData);
 
-    }
+}
 
-    catch(error){
+catch(error){
 
-        console.error("API Error:",error);
+console.error("API Error:",error);
 
-        document.getElementById("itemsGrid").innerHTML =
-        "Mandi data load nahi ho paya ⚠️";
+document.getElementById("itemsGrid").innerHTML =
+"Mandi data load nahi ho paya ⚠️";
 
-    }
+}
 
 }
 
 
-// ===== 4. Page Load Setup =====
+
+// ===== 4. Page Setup =====
 document.addEventListener("DOMContentLoaded",()=>{
 
-    // Load Data
-    fetchLivePrices();
+// Load Data
+fetchLivePrices();
 
 
-    // ===== Map Setup =====
-    const map = L.map("mapContainer").setView([26.7914,84.5042],13);
+// ===== Map Setup =====
+const map = L.map("mapContainer").setView([26.7914,84.5042],13);
 
-    L.tileLayer(
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-    ).addTo(map);
+L.tileLayer(
+"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+).addTo(map);
 
-    L.marker([26.7914,84.5042])
-    .addTo(map)
-    .bindPopup("Bettiah Main Mandi")
-    .openPopup();
-
-
-    // ===== Search Function =====
-    document.getElementById("searchInput")
-    .addEventListener("input",(e)=>{
-
-        const term = e.target.value.toLowerCase();
-
-        const filtered =
-        marketData.filter(item =>
-        item.name.toLowerCase().includes(term));
-
-        renderItems(filtered);
-
-    });
+L.marker([26.7914,84.5042])
+.addTo(map)
+.bindPopup("Bettiah Main Mandi")
+.openPopup();
 
 
-    // ===== Category Filter =====
-    document.getElementById("categoryBar")
-    .onclick = (e)=>{
+// Fix map render bug
+setTimeout(()=>{
+map.invalidateSize();
+},500);
 
-        if(e.target.classList.contains("chip")){
 
-            document.querySelector(".chip.active")
-            .classList.remove("active");
+// ===== Search Function =====
+document.getElementById("searchInput")
+.addEventListener("input",(e)=>{
 
-            e.target.classList.add("active");
+const term = e.target.value.toLowerCase();
 
-            const cat = e.target.innerText;
+const filtered =
+marketData.filter(item =>
+item.name.toLowerCase().includes(term)
+);
 
-            const filtered =
-            cat === "All Items"
-            ? marketData
-            : marketData.filter(i => i.category === cat);
+renderItems(filtered);
 
-            renderItems(filtered);
+});
 
-        }
 
-    };
+// ===== Category Filter =====
+document.getElementById("categoryBar")
+.onclick = (e)=>{
+
+if(e.target.classList.contains("chip")){
+
+document.querySelector(".chip.active")
+.classList.remove("active");
+
+e.target.classList.add("active");
+
+const cat = e.target.innerText;
+
+const filtered =
+cat === "All Items"
+? marketData
+: marketData.filter(i=>i.category===cat);
+
+renderItems(filtered);
+
+}
+
+};
 
 });
 
@@ -140,8 +154,8 @@ document.addEventListener("DOMContentLoaded",()=>{
 // ===== 5. Auto Refresh (30 sec) =====
 setInterval(()=>{
 
-    fetchLivePrices();
+fetchLivePrices();
 
-    console.log("Prices synced with Google Sheets...");
+console.log("Prices synced with Google Sheets...");
 
 },30000);
