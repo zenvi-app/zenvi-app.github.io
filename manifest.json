@@ -1,11 +1,12 @@
 {
-  "id": "india-price-index",
-  "name": "KnowMarket",
-"short_name": "KnowMarket",
-  "description": "Real-time mandi prices across India with live map and updates.",
+  "id": "know-market-app",
+  "name": "Know Market",
+  "short_name": "KnowMarket",
 
-  "start_url": "/",
-  "scope": "/",
+  "description": "Know Market helps users check real-time mandi prices, market trends, and AI insights across India.",
+
+  "start_url": "./index.html",
+  "scope": "./",
 
   "display": "standalone",
   "orientation": "portrait",
@@ -13,7 +14,7 @@
   "background_color": "#f5f7fa",
   "theme_color": "#2ecc71",
 
-  "lang": "hi",
+  "lang": "hi-IN",
 
   "categories": [
     "business",
