@@ -1,183 +1,177 @@
 <!DOCTYPE html>
 <html lang="hi">
-
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Know Market | Sir Aditya</title>
-
-<link rel="manifest" href="manifest.json">
-
-<!-- PWA theme -->
-<meta name="theme-color" content="#2ecc71">
-
-<!-- Fonts -->
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
-
-<!-- Icons -->
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-
-<!-- Leaflet Map -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-<!-- App CSS -->
-<link rel="stylesheet" href="style.css">
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Know Market - Live Mandi Prices</title>
+  
+  <!-- 🔹 PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2ecc71">
+  
+  <!-- 🔹 Fonts & Icons -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  
+  <!-- 🔹 Leaflet CSS (Map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  
+  <!-- 🔹 Custom CSS -->
+  <link rel="stylesheet" href="style.css">
 </head>
-
-
 <body>
 
-
-<header>
-
-<div class="logo">
-<img src="assets/logo.png" alt="Know Market Logo">
-</div>
-
-<div class="location">
-
-<span class="material-icons" style="font-size:18px;margin-right:5px;">place</span>
-
-<span id="loc-text">Detecting location...</span>
-
-<span id="update-loc">Update</span>
-
-</div>
-
-
-<div class="search-box">
-
-<span class="material-icons" style="color:#64748b;margin-right:8px;">search</span>
-
-<input type="text" id="searchInput" placeholder="Search mandi items...">
-
-</div>
-
-</header>
-
-
-<div class="live-update">
-● Live Update: <span id="last-update-time">Loading...</span>
-</div>
-
-
-<!-- MAP -->
-
-<div id="mapContainer"></div>
-
-
-<!-- CATEGORY BAR -->
-
-<div class="categories" id="categoryBar">
-
-<div class="chip active">All Items</div>
-
-<div class="chip">Vegetables</div>
-
-<div class="chip">Grains</div>
-
-<div class="chip">Metals</div>
-
-</div>
-
-
-<!-- ITEMS GRID -->
-
-<div class="items-grid" id="itemsGrid"></div>
-
-
-<!-- AI BUTTON -->
-
-<div class="ai-btn" id="aiTrigger">
-<span class="material-icons">smart_toy</span>
-</div>
-
-
-<!-- BOTTOM NAV -->
-
-<nav class="bottom-nav">
-
-<div class="nav-item active">
-<span class="material-icons">home</span>
-</div>
-
-<div class="nav-item">
-<span class="material-icons">trending_up</span>
-</div>
-
-<div class="nav-item">
-<span class="material-icons">explore</span>
-</div>
-
-<div class="nav-item">
-<span class="material-icons">person</span>
-</div>
-
-</nav>
-
-
-<!-- AI CHAT MODAL -->
-
-<div id="aiModal" class="modal">
-
-<div class="modal-content">
-
-<div class="modal-header">
-
-<h3>
-<span class="material-icons">smart_toy</span>
-AI Assistant
-</h3>
-
-<span class="close-modal">&times;</span>
-
-</div>
-
-
-<div id="chatBody" class="chat-body">
-
-<p class="ai-msg">
-Namaste Sir Aditya 👋  
-Main mandi prices ka analysis kar sakta hoon.  
-Aap mujhse pooch sakte hain:  
-"Tamatar kab sasta hoga?"
-</p>
-
-</div>
-
-
-<div class="chat-input-area">
-
-<input
-type="text"
-id="aiQuery"
-placeholder="Ask something..."
->
-
-<button id="sendQuery">
-<span class="material-icons">send</span>
-</button>
-
-</div>
-
-</div>
-
-</div>
-
-
-<!-- Leaflet Map JS -->
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-
-<!-- App JS -->
-
-<script src="script.js"></script>
-
+  <!-- ========== 🔝 HEADER ========== -->
+  <header>
+    <div class="logo">
+      <img src="assets/logo.png" alt="Know Market Logo" 
+           onerror="this.src='https://via.placeholder.com/40x40/2ecc71/fff?text=KM'">
+    </div>
+    
+    <div class="location">
+      <span class="material-icons">place</span>
+      <span id="loc-text">Detecting location...</span>
+      <span id="update-loc">Update</span>
+    </div>
+    
+    <div class="search-box">
+      <span class="material-icons">search</span>
+      <input type="text" id="searchInput" placeholder="Search mandi items...">
+    </div>
+  </header>
+
+  <!-- ========== 🏠 HOME PAGE ========== -->
+  <div id="homePage" class="page active">
+    
+    <div class="banner">
+      <h2>🥦 Know Market</h2>
+      <p>Check real mandi prices near you</p>
+    </div>
+        <div class="category-icons">
+      <div class="cat" data-category="Vegetables">
+        <span class="material-icons">eco</span>
+        <p>Vegetables</p>
+      </div>
+      <div class="cat" data-category="Grains">
+        <span class="material-icons">grain</span>
+        <p>Grains</p>
+      </div>
+      <div class="cat" data-category="Fruits">
+        <span class="material-icons">apple</span>
+        <p>Fruits</p>
+      </div>
+      <div class="cat" data-category="Others">
+        <span class="material-icons">diamond</span>
+        <p>Metals</p>
+      </div>
+    </div>
+    
+    <div class="live-update">
+      ● Live Update: <span id="last-update-time">Loading...</span>
+    </div>
+    
+    <div class="items-grid" id="itemsGrid"></div>
+    
+  </div>
+
+  <!-- ========== 🗺️ EXPLORE PAGE ========== -->
+  <div id="explorePage" class="page">
+    <h2 class="page-title">Nearby Markets</h2>
+    <div id="mapContainer"></div>
+    <p class="map-tip">💡 Tap on markers to see mandi details</p>
+  </div>
+
+  <!-- ========== 🏪 SHOPS PAGE ========== -->
+  <div id="shopsPage" class="page">
+    <h2 class="page-title">Nearby Shops</h2>
+    <p class="coming-soon">
+      Shops feature coming soon. 
+      <br><br>
+      <!-- ✅ FIXED: href="javascript:void(0)" to prevent reload -->
+      <a href="javascript:void(0)" id="registerShopLink">Register your shop</a>
+    </p>
+  </div>
+
+  <!-- ========== 👤 PROFILE PAGE ========== -->
+  <div id="profilePage" class="page">
+    <h2 class="page-title">Your Profile</h2>
+    <div class="profile-content">
+      <button id="googleLoginBtn" class="login-btn">        <span class="material-icons">login</span>
+        Login with Google
+      </button>
+      <p id="userName" class="user-name"></p>
+      <!-- ✅ .hidden class will be defined in style.css -->
+      <div id="profileDetails" class="profile-details hidden">
+        <p><strong>Email:</strong> <span id="userEmail"></span></p>
+        <button id="logoutBtn" class="logout-btn">Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 🧭 BOTTOM NAVIGATION ========== -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-page="home">
+      <span class="material-icons">home</span>
+      <p>Home</p>
+    </div>
+    <div class="nav-item" data-page="shops">
+      <span class="material-icons">store</span>
+      <p>Shops</p>
+    </div>
+    <div class="nav-item" id="aiTrigger">
+      <span class="material-icons">smart_toy</span>
+      <p>AI</p>
+    </div>
+    <div class="nav-item" data-page="explore">
+      <span class="material-icons">explore</span>
+      <p>Explore</p>
+    </div>
+    <div class="nav-item" data-page="profile">
+      <span class="material-icons">person</span>
+      <p>Profile</p>
+    </div>
+  </nav>
+
+  <!-- ========== 🤖 AI CHAT MODAL ========== -->
+  <div id="aiModal" class="modal">
+    <div class="modal-content">
+      
+      <div class="modal-header">
+        <h3>
+          <span class="material-icons">smart_toy</span>
+          Know Market AI
+        </h3>
+        <!-- ✅ Added ID for JS selector -->
+        <span class="close-modal" id="closeAiModal">×</span>
+      </div>
+      
+      <div id="chatBody" class="chat-body">        <p class="ai-msg">
+          Namaste Sir Aditya 👋<br><br>
+          Main aapki madad kar sakta hoon:<br>
+          • 🍅 Aaj ka tamatar rate?<br>
+          • 📍 Bettiah mandi ka location?<br>
+          • 📉 Kal price kya hoga?
+        </p>
+      </div>
+      
+      <div class="chat-input-area">
+        <!-- ✅ REMOVED inline onkeypress → Will handle in script.js -->
+        <input type="text" id="aiQuery" placeholder="Ask about mandi prices...">
+        <button id="sendQuery">
+          <span class="material-icons">send</span>
+        </button>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- ========== 🔗 EXTERNAL SCRIPTS ========== -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script type="module" src="firebase-config.js"></script>
+
+<script defer src="script.js"></script>
 
 </body>
-
-  </html>
+</html>
