@@ -3,21 +3,15 @@
   "name": "Know Market",
   "short_name": "KnowMarket",
   "description": "Live mandi prices, nearby markets and AI insights across India.",
-  
-  "start_url": "./",
+  "start_url": "./index.html",
   "scope": "/",
-  
   "display": "standalone",
   "orientation": "portrait",
-  
   "background_color": "#f5f7fa",
   "theme_color": "#2ecc71",
-  
   "lang": "hi-IN",
   "dir": "ltr",
-  
   "categories": ["business", "finance", "utilities", "shopping"],
-  
   "icons": [
     {
       "src": "assets/icon.png",
@@ -38,7 +32,6 @@
       "purpose": "any"
     }
   ],
-  
   "screenshots": [
     {
       "src": "assets/screen1.png",
@@ -55,24 +48,22 @@
       "label": "Explore - Map View"
     }
   ],
-  
   "shortcuts": [
     {
       "name": "Check Prices",
       "short_name": "Prices",
       "description": "View today's mandi prices",
-      "url": "./?page=home",
+      "url": "/index.html",
       "icons": [{ "src": "assets/icon.png", "sizes": "192x192" }]
     },
     {
       "name": "Find Markets",
       "short_name": "Markets",
       "description": "Explore nearby mandis on map",
-      "url": "./?page=explore",
+      "url": "/index.html",
       "icons": [{ "src": "assets/icon.png", "sizes": "192x192" }]
     }
   ],
-  
   "prefer_related_applications": false,
   "related_applications": [],
   "display_override": ["standalone", "minimal-ui"]
