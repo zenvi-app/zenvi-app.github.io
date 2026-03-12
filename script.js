@@ -218,24 +218,19 @@ function sendAIMessage() {
   }, 1000);
 }
 
-/* ===== 🗺️ INITIALIZE MAP (PROFESSIONAL - SVG ICONS) ===== */
+/* ===== 🗺️ INITIALIZE MAP ===== */
 function initMap() {
   if (map) return;
   const mapContainer = document.getElementById("mapContainer");
   if (!mapContainer) { console.error("❌ mapContainer not found!"); return; }
   console.log("🗺️ Initializing map...");
   
-  map = L.map("mapContainer", {
-    zoomControl: false,
-    attributionControl: false
-  }).setView([26.8018, 84.5037], 15);
+  map = L.map("mapContainer", { zoomControl: false }).setView([26.8018, 84.5037], 15);
   
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: "© OpenStreetMap"
+    attribution: "© OpenStreetMap contributors"
   }).addTo(map);
-  
-  L.control.zoom({ position: 'topright' }).addTo(map);
   
   const mandiIcon = L.divIcon({
     html: `<div class="custom-mandi-marker">
@@ -243,27 +238,25 @@ function initMap() {
         <circle cx="16" cy="16" r="14" fill="#2ecc71"/>
         <path d="M16 8C13 8 12 11 12 14C12 17 13 20 16 24C19 20 20 17 20 14C20 11 19 8 16 8Z" fill="white"/>
         <circle cx="16" cy="14" r="3" fill="#27ae60"/>
-      </svg>    </div>`,
+      </svg>
+    </div>`,
     className: "custom-marker",
     iconSize: [40, 40],
     iconAnchor: [20, 40]
-  });
-  
+  });  
   L.marker([26.8018, 84.5037], { icon: mandiIcon })
     .addTo(map)
-    .bindPopup(`
-      <div style="text-align:center; min-width:180px;">
-        <h3 style="margin:0 0 8px 0; color:#333; font-size:15px;">🥦 Bettiah Main Mandi</h3>
-        <p style="margin:4px 0; color:#666; font-size:13px;">📍 1.2 km away</p>
-        <p style="margin:4px 0; color:#27ae60; font-weight:600; font-size:13px;">✅ Open now</p>
-        <hr style="margin:12px 0; border:none; border-top:1px solid #eee;">
-        <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
-          <span style="background:#f8f9fa; padding:4px 8px; border-radius:4px; font-size:11px;">🍅 ₹20/kg</span>
-          <span style="background:#f8f9fa; padding:4px 8px; border-radius:4px; font-size:11px;">🧅 ₹25/kg</span>
-          <span style="background:#f8f9fa; padding:4px 8px; border-radius:4px; font-size:11px;">🥔 ₹18/kg</span>
-        </div>
+    .bindPopup(`<div style="text-align:center; min-width:180px;">
+      <h3 style="margin:0 0 8px 0; color:#333; font-size:15px;">🥦 Bettiah Main Mandi</h3>
+      <p style="margin:4px 0; color:#666; font-size:13px;">📍 1.2 km away</p>
+      <p style="margin:4px 0; color:#27ae60; font-weight:600; font-size:13px;">✅ Open now</p>
+      <hr style="margin:12px 0; border:none; border-top:1px solid #eee;">
+      <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
+        <span style="background:#f8f9fa; padding:4px 8px; border-radius:4px; font-size:11px;">🍅 ₹20/kg</span>
+        <span style="background:#f8f9fa; padding:4px 8px; border-radius:4px; font-size:11px;">🧅 ₹25/kg</span>
+        <span style="background:#f8f9fa; padding:4px 8px; border-radius:4px; font-size:11px;">🥔 ₹18/kg</span>
       </div>
-    `);
+    </div>`);
   
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
@@ -275,14 +268,22 @@ function initMap() {
             iconSize: [16, 16],
             iconAnchor: [8, 8]
           })
-        })
-        .addTo(map)
-        .bindPopup("📍 You are here");
+        }).addTo(map).bindPopup("📍 You are here");
+        
         const locText = document.getElementById("loc-text");
-        if (locText) locText.innerText = `Lat: ${latitude.toFixed(3)}`;
+        if (locText) {
+          locText.innerText = "Detecting...";
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
+            .then(res => res.json())
+            .then(data => {
+              const place = data.address?.village || data.address?.town || data.address?.city || data.address?.suburb || "Current Location";
+              locText.innerText = place;
+            })
+            .catch(() => { locText.innerText = `Lat: ${latitude.toFixed(3)}`; });
+        }
       },
       (error) => { console.warn("⚠️ Location error:", error.message); },
-      { enableHighAccuracy: true, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 15000 }
     );
   }
   
@@ -291,15 +292,13 @@ function initMap() {
     selectedMarker = L.marker(e.latlng, {
       icon: L.divIcon({
         html: "📍",
-        className: "selected-location-marker",
-        iconSize: [40, 40],        iconAnchor: [20, 40]
+        className: "selected-location-marker",        iconSize: [40, 40],
+        iconAnchor: [20, 40]
       })
-    })
-    .addTo(map)
-    .bindPopup("📌 Selected Location")
-    .openPopup();
-    const locText = document.getElementById("loc-text");
-    if (locText) locText.innerText = `Selected: ${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}`;
+    }).addTo(map).bindPopup("📌 Selected Location").openPopup();
+    
+    // Show location card when map is clicked
+    confirmLocation();
   });
   
   console.log("✅ Map initialized");
@@ -341,13 +340,13 @@ function filterItems(term) {
   };
   const englishTerm = hindiMap[searchTerm] || searchTerm;
   const filtered = marketData.filter(item => {
-    const itemName = item.name.toLowerCase();    const itemCategory = item.category.toLowerCase();
-    return itemName.includes(searchTerm) || itemName.includes(englishTerm) || itemCategory.includes(searchTerm);
+    const itemName = item.name.toLowerCase();
+    const itemCategory = item.category.toLowerCase();    return itemName.includes(searchTerm) || itemName.includes(englishTerm) || itemCategory.includes(searchTerm);
   });
   renderItems(filtered);
 }
 
-/* ===== 🧭 PAGE NAVIGATION (WITH PAGE-SPECIFIC SEARCH) ===== */
+/* ===== 🧭 PAGE NAVIGATION (FIXED) ===== */
 function setupNavigation() {
   const pages = {
     home: document.getElementById("homePage"),
@@ -355,42 +354,72 @@ function setupNavigation() {
     shops: document.getElementById("shopsPage"),
     profile: document.getElementById("profilePage")
   };
+  
   const searchBox = document.getElementById("searchBox");
   const searchInput = document.getElementById("searchInput");
   const searchIcon = document.getElementById("searchIcon");
+  
   const searchConfigs = {
     home: { placeholder: "Search mandi items...", icon: "search", type: "items", show: true },
     shops: { placeholder: "Search shops...", icon: "store", type: "shops", show: true },
-    explore: { placeholder: "Search locations...", icon: "place", type: "locations", show: true },
+    explore: { placeholder: "", icon: "place", type: "locations", show: false },
     profile: { placeholder: "Search settings...", icon: "settings", type: "settings", show: false }
   };
   
   function showPage(pageName) {
+    document.querySelectorAll(".page").forEach(page => {
+      page.classList.remove("active");
+    });
+    
+    if (pages[pageName]) {
+      pages[pageName].classList.add("active");
+    }
+    
     const config = searchConfigs[pageName];
     if (config) {
-      if (searchInput) { searchInput.placeholder = config.placeholder; searchInput.value = ""; }
+      if (searchInput) {
+        searchInput.placeholder = config.placeholder;
+        searchInput.value = "";
+      }
       if (searchIcon) searchIcon.textContent = config.icon;
       if (searchBox) searchBox.style.display = config.show ? "flex" : "none";
     }
-    Object.values(pages).forEach(p => { if (p) p.classList.remove("active"); });
-    if (pages[pageName]) pages[pageName].classList.add("active");
-    document.querySelectorAll(".nav-item").forEach(item => item.classList.remove("active"));
+    
+    document.querySelectorAll(".nav-item").forEach(item => {
+      item.classList.remove("active");
+    });
     const activeBtn = document.querySelector(`.nav-item[data-page="${pageName}"]`);
     if (activeBtn) activeBtn.classList.add("active");
-    if (pageName === "explore") {
-      if (!map) setTimeout(() => initMap(), 100);
-      else setTimeout(() => map.invalidateSize(), 300);
+        if (pageName === "explore") {
+      setTimeout(() => {
+        if (!map) {
+          console.log("🗺️ First time - initializing map");
+          initMap();
+        } else {
+          console.log("🗺️ Map exists - invalidating size");
+          map.invalidateSize();
+        }
+      }, 300);
     }
-    if (pageName === "home" && marketData.length > 0) renderItems(marketData);
+    
+    if (pageName === "home" && marketData.length > 0) {
+      renderItems(marketData);
+    }
   }
   
   document.querySelectorAll(".nav-item[data-page]").forEach(item => {
-    item.addEventListener("click", () => showPage(item.dataset.page));
+    item.addEventListener("click", (e) => {
+      e.preventDefault();
+      const pageName = item.dataset.page;
+      showPage(pageName);
+    });
   });
+  
   showPage("home");
 }
 
-/* ===== 🔍 UNIVERSAL SEARCH HANDLER ===== */function setupUniversalSearch() {
+/* ===== 🔍 UNIVERSAL SEARCH HANDLER ===== */
+function setupUniversalSearch() {
   const searchInput = document.getElementById("searchInput");
   if (!searchInput) return;
   let searchTimeout;
@@ -402,16 +431,15 @@ function setupNavigation() {
     searchTimeout = setTimeout(() => {
       if (pageId === "homePage") filterItems(query);
       else if (pageId === "shopsPage") filterShops(query);
-      else if (pageId === "explorePage") searchLocation(query);
+      else if (pageId === "explorePage") return;
     }, 300);
   });
 }
 
-/* ===== 🏪 SHOP SEARCH (Future Feature) ===== */
+/* ===== 🏪 SHOP SEARCH ===== */
 function filterShops(query) {
   console.log("🔍 Searching shops:", query);
-  const shopsPage = document.getElementById("shopsPage");
-  if (!shopsPage) return;
+  const shopsPage = document.getElementById("shopsPage");  if (!shopsPage) return;
   if (!query) {
     shopsPage.innerHTML = `<h2 class="page-title">Nearby Shops</h2><p class="coming-soon">Shops feature coming soon.<br><br><a href="javascript:void(0)" id="registerShopLink">Register your shop</a></p>`;
     document.getElementById("registerShopLink")?.addEventListener("click", (e) => { e.preventDefault(); alert("🚀 Coming soon!"); });
@@ -420,7 +448,7 @@ function filterShops(query) {
   shopsPage.innerHTML = `<h2 class="page-title">Searching...</h2><p class="coming-soon">Looking for: "${query}"<br><br>Feature coming soon! 🚀</p>`;
 }
 
-/* ===== 🗺️ LOCATION SEARCH (WITH FLY ANIMATION) ===== */
+/* ===== 🗺️ LOCATION SEARCH ===== */
 function searchLocation(query) {
   console.log("🗺️ Searching location:", query);
   if (!query || !map) return;
@@ -439,16 +467,16 @@ function searchLocation(query) {
           icon: L.divIcon({
             html: "<div style='font-size:40px'>📍</div>",
             className: "selected-location-marker",
-            iconSize: [40, 40],            iconAnchor: [20, 40]
+            iconSize: [40, 40],
+            iconAnchor: [20, 40]
           })
-        })
-        .addTo(map)
-        .bindPopup(`<b>${location.display_name}</b>`)
-        .openPopup();
+        }).addTo(map).bindPopup(`<b>${location.display_name}</b>`).openPopup();
         const locText = document.getElementById("loc-text");
         if (locText) locText.innerText = location.display_name.split(',')[0];
         if (searchInput) searchInput.placeholder = "Search for area, street name...";
         console.log("✅ Location found:", location.display_name);
+        // Show location card
+        confirmLocation();
       } else {
         alert("❌ Location not found. Try: 'Bettiah', 'Patna', 'Delhi'");
         if (searchInput) searchInput.placeholder = "Search for area, street name...";
@@ -460,7 +488,6 @@ function searchLocation(query) {
       if (searchInput) searchInput.placeholder = "Search for area, street name...";
     });
 }
-
 /* ===== 📍 GET CURRENT LOCATION ===== */
 function getCurrentLocation() {
   if (!navigator.geolocation) { alert("❌ Geolocation not supported"); return; }
@@ -469,7 +496,7 @@ function getCurrentLocation() {
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const { latitude, longitude } = pos.coords;
-      if (map) map.flyTo([latitude, longitude], 16, { duration: 1.5, easeLinearity: 0.25 });
+      if (map) map.flyTo([latitude, longitude], 16, { duration: 1.5 });
       if (userMarker) {
         userMarker.setLatLng([latitude, longitude]);
       } else {
@@ -479,23 +506,95 @@ function getCurrentLocation() {
             iconSize: [16, 16],
             iconAnchor: [8, 8]
           })
-        })
-        .addTo(map)
-        .bindPopup("📍 You are here")
-        .openPopup();
+        }).addTo(map).bindPopup("📍 You are here").openPopup();
       }
       if (locText) {
-        locText.innerText = "Current location ✓";
-        setTimeout(() => { locText.innerText = `Lat: ${latitude.toFixed(3)}`; }, 2000);
+        locText.innerText = "Detecting area...";
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`)
+          .then(res => res.json())
+          .then(data => {
+            const place = data.address?.village || data.address?.town || data.address?.city || data.address?.suburb;
+            if (place) locText.innerText = place;
+            else locText.innerText = `Lat: ${latitude.toFixed(3)}`;
+          })
+          .catch(() => { locText.innerText = `Lat: ${latitude.toFixed(3)}`; });
       }
-      console.log("✅ Current location found");    },
+      console.log("✅ Current location found");
+      // Show location card
+      confirmLocation();
+    },
     (error) => {
       console.warn("⚠️ Location error:", error.message);
-      if (locText) locText.innerText = "Failed ✗";
-      alert("Could not get location. Enable GPS.");
+      if (locText) locText.innerText = "GPS Off ✗";
     },
-    { enableHighAccuracy: true, timeout: 10000 }
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 300000 }
   );
+}
+
+/* ===== ✅ CONFIRM LOCATION (SWIGGY STYLE) ===== */
+function confirmLocation() {
+  const locationCard = document.getElementById("locationCard");
+  const locationName = document.getElementById("selectedLocationName");
+  const locationAddress = document.getElementById("selectedLocationAddress");
+  
+  if (!locationCard || !locationName || !locationAddress) return;  
+  let currentLat = 26.792;
+  let currentLng = 84.5037;
+  
+  if (map) {
+    const center = map.getCenter();
+    currentLat = center.lat;
+    currentLng = center.lng;
+  }
+  
+  locationName.innerHTML = "📍 Detecting location...";
+  locationAddress.innerText = "Please wait";
+  
+  fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${currentLat}&lon=${currentLng}`)
+    .then(res => res.json())
+    .then(data => {
+      const area = data.address?.suburb || data.address?.neighbourhood || "";
+      const city = data.address?.city || data.address?.town || data.address?.village || "";
+      const state = data.address?.state || "";
+      const country = data.address?.country || "India";
+      
+      const displayName = city || area || "Selected Location";
+      const fullAddress = [area, city, state, country].filter(Boolean).join(", ");
+      
+      locationName.innerHTML = `📍 ${displayName}`;
+      locationAddress.innerText = fullAddress;
+      
+      locationCard.style.display = "block";
+      locationCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    })
+    .catch(error => {
+      console.error("❌ Location fetch error:", error);
+      locationName.innerHTML = "⚠️ Could not detect location";
+      locationAddress.innerText = "Please try again";
+      locationCard.style.display = "block";
+    });
+}
+
+/* ===== 🎯 CONFIRM & PROCEED ===== */
+function confirmAndProceed() {
+  const locationName = document.getElementById("selectedLocationName");
+  const locationAddress = document.getElementById("selectedLocationAddress");
+  const locationCard = document.getElementById("locationCard");
+  
+  if (!locationName || !locationAddress) return;
+  
+  const selectedLocation = locationName.innerText.replace("📍 ", "");
+  const fullAddress = locationAddress.innerText;
+  
+  const locText = document.getElementById("loc-text");  if (locText) {
+    locText.innerText = selectedLocation;
+  }
+  
+  locationCard.style.display = "none";
+  
+  alert(`✅ Location confirmed!\n\n📍 ${selectedLocation}\n🏠 ${fullAddress}\n\nYou can now browse mandi prices for this area.`);
+  
+  document.querySelector('[data-page="home"]').click();
 }
 
 /* ===== 🎯 SETUP LOCATION SEARCH LISTENER ===== */
@@ -536,8 +635,8 @@ function setupEventListeners() {
   if (updateLocBtn) {
     updateLocBtn.addEventListener("click", () => {
       if (!navigator.geolocation) { alert("❌ Location not supported"); return; }
-      const locText = document.getElementById("loc-text");
-      if (locText) locText.innerText = "Detecting...";      navigator.geolocation.getCurrentPosition(
+      const locText = document.getElementById("loc-text");      if (locText) locText.innerText = "Detecting...";
+      navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords;
           if (map && userMarker) { map.setView([latitude, longitude], 14); userMarker.setLatLng([latitude, longitude]); }
@@ -583,15 +682,31 @@ document.addEventListener("DOMContentLoaded", () => {
   setupUniversalSearch();
   setupEventListeners();
   setupLocationSearch();
+  
+  const locationSearch = document.getElementById("locationSearchInput");
+  if (locationSearch) {    locationSearch.addEventListener("keypress", function(e) {
+      if (e.key === "Enter") searchLocation(this.value);
+    });
+  }
+  
   const timeEl = document.getElementById("last-update-time");
   if (timeEl) timeEl.innerText = new Date().toLocaleTimeString("hi-IN", { hour: '2-digit', minute: '2-digit' });
   console.log("✅ App initialized");
 });
+
 /* ===== 🔄 AUTO REFRESH (5 min) ===== */
-setInterval(() => { console.log("🔄 Auto-refreshing..."); fetchLivePrices(); }, 300000);
+setInterval(() => {
+  if (document.visibilityState === "visible") {
+    console.log("🔄 Auto-refreshing...");
+    fetchLivePrices();
+  }
+}, 300000);
 
 /* ===== 🌍 GLOBAL FUNCTIONS ===== */
 window.sendAIMessage = sendAIMessage;
 window.initMap = initMap;
 window.filterItems = filterItems;
 window.getCurrentLocation = getCurrentLocation;
+window.searchLocation = searchLocation;
+window.confirmLocation = confirmLocation;
+window.confirmAndProceed = confirmAndProceed;
