@@ -1,17 +1,17 @@
 {
-  "id": "know-market-app",
-  "name": "Know Market",
-  "short_name": "KnowMarket",
-  "description": "Live mandi prices, nearby markets and AI insights across India.",
+  "id": "zenvi-app",
+  "name": "Zenvi - Live Mandi Prices",
+  "short_name": "Zenvi",
+  "description": "Live mandi prices, nearby markets aur AI insights — India ke liye. Powered by Zenvi.",
   "start_url": "./index.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f5f7fa",
-  "theme_color": "#2ecc71",
+  "background_color": "#f0fdf4",
+  "theme_color": "#16a34a",
   "lang": "hi-IN",
   "dir": "ltr",
-  "categories": ["business", "finance", "utilities", "shopping"],
+  "categories": ["business", "finance", "utilities", "shopping", "agriculture"],
   "icons": [
     {
       "src": "assets/icon.png",
@@ -38,33 +38,43 @@
       "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Home Screen - Live Mandi Prices"
+      "label": "Zenvi Home - Live Mandi Prices"
     },
     {
       "src": "assets/screen2.png",
       "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Explore - Map View"
+      "label": "Zenvi Explore - Map View"
     }
   ],
   "shortcuts": [
     {
       "name": "Check Prices",
       "short_name": "Prices",
-      "description": "View today's mandi prices",
-      "url": "/index.html",
+      "description": "Aaj ki mandi prices dekhein",
+      "url": "./index.html",
+      "icons": [{ "src": "assets/icon.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "AI Assistant",
+      "short_name": "Zenvi AI",
+      "description": "Mandi ke baare mein AI se poochein",
+      "url": "./index.html",
       "icons": [{ "src": "assets/icon.png", "sizes": "192x192" }]
     },
     {
       "name": "Find Markets",
       "short_name": "Markets",
-      "description": "Explore nearby mandis on map",
-      "url": "/index.html",
+      "description": "Nearby mandis dhundhein",
+      "url": "./index.html",
       "icons": [{ "src": "assets/icon.png", "sizes": "192x192" }]
     }
   ],
   "prefer_related_applications": false,
   "related_applications": [],
-  "display_override": ["standalone", "minimal-ui"]
+  "display_override": ["standalone", "minimal-ui"],
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }
