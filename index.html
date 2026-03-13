@@ -2,185 +2,397 @@
 <html lang="hi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Know Market - Live Mandi Prices</title>
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Zenvi - Live Mandi Prices</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2ecc71">
-  
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#16a34a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Zenvi">
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- ========== 🔝 HEADER ========== -->
-  <header id="mainHeader">
-  <div class="logo">
-    <img src="assets/logo.png" alt="Know Market Logo" onerror="this.src='https://via.placeholder.com/40x40/2ecc71/fff?text=KM'">
+<!-- ========== SPLASH SCREEN ========== -->
+<div id="splashScreen" class="splash">
+  <div class="splash-logo">
+    <div class="splash-icon">🌿</div>
+    <h1>Zenvi</h1>
+    <p>Smart Mandi App</p>
   </div>
-  
-  <div class="location" id="headerLocation">
-    <span class="material-icons">place</span>
-    <span id="loc-text">Detecting location...</span>
-    <span id="update-loc">Update</span>
+  <div class="splash-loader"><div class="loader-bar"></div></div>
+</div>
+
+<!-- ========== HEADER ========== -->
+<header id="mainHeader">
+  <div class="header-top">
+    <div class="location-pill" id="locationSection">
+      <span class="material-icons-round loc-icon">location_on</span>
+      <div class="loc-info">
+        <span class="loc-label">📍 Location</span>
+        <span class="loc-address" id="homeAddress">Tap to set location</span>
+      </div>
+      <span class="material-icons-round">expand_more</span>
+    </div>
+    <div class="header-right">
+      <div class="notif-btn"><span class="material-icons-round">notifications_none</span></div>
+      <div class="avatar-btn" id="profileIcon"><span class="material-icons-round">account_circle</span></div>
+    </div>
   </div>
-  
-  <div class="search-box" id="searchBox">
-    <span class="material-icons" id="searchIcon">search</span>
-    <input type="text" id="searchInput" placeholder="Search mandi items...">
+  <div class="search-wrap">
+    <span class="material-icons-round s-icon">search</span>
+    <input type="text" id="searchInput" placeholder="सब्जी, अनाज, फल खोजें..." autocomplete="off">
+    <span class="material-icons-round mic-icon" id="micBtn">mic</span>
   </div>
 </header>
 
-  <!-- ========== 🏠 HOME PAGE ========== -->
-  <div id="homePage" class="page active">
-    <div class="banner">
-      <h2>🥦 Know Market</h2>
-      <p>Check real mandi prices near you</p>
+<!-- ========== HOME PAGE ========== -->
+<div id="homePage" class="page active">
+
+  <!-- Hero Banner -->
+  <div class="hero-banner">
+    <div class="hero-text">
+      <p class="hero-sub">आज की ताज़ा कीमतें</p>
+      <h2 class="hero-title">Live Mandi<br><span>Prices</span></h2>
+      <div class="live-badge"><span class="dot"></span> Live Update</div>
     </div>
-    
-    <div class="category-icons">
-      <div class="cat" data-category="Vegetables">
-        <span class="material-icons">eco</span>
-        <p>Vegetables</p>
-      </div>
-      <div class="cat" data-category="Grains">
-        <span class="material-icons">grain</span>
-        <p>Grains</p>      </div>
-      <div class="cat" data-category="Fruits">
-        <span class="material-icons">apple</span>
-        <p>Fruits</p>
-      </div>
-      <div class="cat" data-category="Others">
-        <span class="material-icons">diamond</span>
-        <p>Metals</p>
-      </div>
-    </div>
-    
-    <div class="live-update">
-      ● Live Update: <span id="last-update-time">Loading...</span>
-    </div>
-    
-    <div class="items-grid" id="itemsGrid"></div>
+    <div class="hero-art">🥦</div>
   </div>
 
-  <!-- ========== 🗺️ EXPLORE PAGE (SWIGGY STYLE) ========== -->
-  <div id="explorePage" class="page">
-    <div class="zomato-header">
-      <div class="back-btn" onclick="document.querySelector('[data-page=home]').click()">
-        <span class="material-icons">arrow_back</span>
+  <!-- Stats Row -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card" id="statTotal"><span class="stat-num">--</span><span class="stat-label">Items</span></div>
+    <div class="stat-card" id="statCheap"><span class="stat-num green">--</span><span class="stat-label">Sabse Sasta</span></div>
+    <div class="stat-card" id="statTime"><span class="stat-num">--:--</span><span class="stat-label">Updated</span></div>
+  </div>
+
+  <!-- Categories -->
+  <div class="section-header"><h3>Categories</h3></div>
+  <div class="category-row" role="tablist">
+    <div class="cat-chip active" data-category="All"><span>🛒</span> Sab</div>
+    <div class="cat-chip" data-category="Vegetables"><span>🥬</span> Sabji</div>
+    <div class="cat-chip" data-category="Fruits"><span>🍎</span> Phal</div>
+    <div class="cat-chip" data-category="Grains"><span>🌾</span> Anaaj</div>
+    <div class="cat-chip" data-category="Others"><span>✨</span> Aur</div>
+  </div>
+
+  <!-- Items Grid -->
+  <div class="section-header">
+    <h3>Market Rates</h3>
+    <span class="refresh-btn" id="refreshBtn"><span class="material-icons-round">refresh</span></span>
+  </div>
+  <div class="items-grid" id="itemsGrid" role="list"></div>
+</div>
+
+<!-- ========== EXPLORE PAGE ========== -->
+<div id="explorePage" class="page">
+  <div class="page-header-simple">
+    <div class="back-btn" id="backBtn"><span class="material-icons-round">arrow_back</span></div>
+    <h2>Location Set Karein</h2>
+  </div>
+  <div class="location-search-box">
+    <span class="material-icons-round">search</span>
+    <input type="text" id="locationSearchInput" placeholder="Area ya address dhundein..." autocomplete="off">
+  </div>
+
+  <!-- Map with CENTER PIN (Swiggy style) -->
+  <div class="map-wrap">
+    <div id="mapContainer"></div>
+
+    <!-- Fixed center pin — always stays in middle -->
+    <div class="center-pin" id="centerPin">
+      <div class="pin-icon"></div>
+      <div class="pin-shadow"></div>
+    </div>
+
+    <!-- Zoom hint -->
+    <div class="zoom-hint" id="zoomHint">
+      <span class="material-icons-round">zoom_in</span>
+      Zoom in to place pin at exact location
+    </div>
+
+    <!-- Current Location Button -->
+    <button class="my-loc-btn" id="currentLocationBtn">
+      <span class="material-icons-round">my_location</span>
+      <span>Current Location</span>
+    </button>
+  </div>
+
+  <!-- Location Card — always visible at bottom -->
+  <div class="loc-confirm-card" id="locationCard">
+    <p class="card-sub">📦 Yahan deliver hoga</p>
+    <div class="card-loc-row">
+      <div class="pin-dot"></div>
+      <div class="card-loc-text">
+        <h3 id="selectedLocationName">Map pe location chunein...</h3>
+        <p id="selectedLocationAddress">Map drag karo ya search karein</p>
       </div>
-      <h2>Select delivery location</h2>
     </div>
-    
-    <div class="zomato-search">
-      <span class="material-icons">search</span>
-      <input type="text" id="locationSearchInput" placeholder="Search an area or address">
+    <div id="zoomWarning" class="zoom-warning" style="display:none;">
+      <span class="material-icons-round">zoom_in</span>
+      Exact location ke liye zoom in karein
     </div>
-    
-    <div class="zomato-map">
-      <div id="mapContainer"></div>
-      <button class="current-location-btn" onclick="getCurrentLocation()">
-        <span class="material-icons">my_location</span>
-        <span>Current location</span>
-      </button>
+    <button class="confirm-btn" id="confirmBtn" disabled>📍 Confirm Location</button>
+  </div>
+</div>
+
+<!-- ========== SHOPS PAGE ========== -->
+<div id="shopsPage" class="page">
+  <div class="coming-soon-page">
+    <div class="cs-icon">🏪</div>
+    <h2>Nearby Shops</h2>
+    <p>Yeh feature jald aane wala hai!</p>
+    <a href="#" id="registerShopLink" class="register-btn">+ Register Your Shop</a>
+  </div>
+</div>
+
+<!-- ========== PROFILE PAGE ========== -->
+<div id="profilePage" class="page">
+  <div class="profile-scroll">
+
+  <!-- Hero Banner -->
+  <div class="profile-hero">
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar-circle" id="profileAvatarCircle">
+        <span class="material-icons-round" id="profileAvatarIcon">account_circle</span>
+        <img id="profileAvatarImg" src="" alt="" style="display:none;">
+      </div>
+      <div class="profile-online-dot" id="profileOnlineDot" style="display:none;"></div>
     </div>
-    
-    <!-- Swiggy-Style Location Card -->
-    <div class="location-selection-card" id="locationCard" style="display: none;">
-      <p class="delivery-text">Order will be delivered here</p>
-      <div class="location-info">
-        <span class="material-icons location-pin">location_on</span>
-        <div class="location-details">
-          <h3 id="selectedLocationName">Pipra Pakri</h3>
-          <p id="selectedLocationAddress">Pipra Pakri, Bihar, India</p>
+    <h2 class="profile-name" id="profileDisplayName">Guest User</h2>
+    <p class="profile-email-top" id="profileEmailTop">Login karein apna account access karne ke liye</p>
+    <div class="profile-location-tag" id="profileLocationTag" style="display:none;">
+      <span class="material-icons-round">location_on</span>
+      <span id="profileLocationText">Location set karein</span>
+    </div>
+  </div>
+
+  <!-- LOGIN CARD (logged out) -->
+  <div id="loginCard" class="profile-card">
+    <div class="login-benefits">
+      <div class="benefit-item"><span>🔔</span><p>Price Alerts</p></div>
+      <div class="benefit-item"><span>⭐</span><p>Favourites</p></div>
+      <div class="benefit-item"><span>📊</span><p>Market Watch</p></div>
+    </div>
+    <button id="googleLoginBtn" class="google-login-btn">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="G" width="20">
+      Google se Login Karein
+    </button>
+  </div>
+
+  <!-- LOGGED IN SECTIONS -->
+  <div id="profileDetails" class="hidden">
+
+    <!-- Stats -->
+    <div class="profile-stats">
+      <div class="pstat"><span class="pstat-num" id="statSearches">0</span><span class="pstat-label">Searches</span></div>
+      <div class="pstat-divider"></div>
+      <div class="pstat"><span class="pstat-num" id="statFavourites">0</span><span class="pstat-label">Favourites</span></div>
+      <div class="pstat-divider"></div>
+      <div class="pstat"><span class="pstat-num" id="statAlerts">0</span><span class="pstat-label">Alerts</span></div>
+    </div>
+
+    <!-- Saved Location -->
+    <div class="profile-section-title">📍 Saved Location</div>
+    <div class="profile-card p0">
+      <div class="location-info-row" id="savedLocationRow">
+        <div class="loc-icon-box"><span class="material-icons-round">location_on</span></div>
+        <div class="loc-info-text">
+          <p id="savedLocName">Location set nahi hai</p>
+          <span id="savedLocAddr">Explore tab se set karein</span>
         </div>
-      </div>      <button class="confirm-btn-swiggy" onclick="confirmAndProceed()">
-        Confirm & proceed
+        <button class="change-loc-btn" onclick="showPage('explore')">Change</button>
+      </div>
+    </div>
+
+    <!-- Favourite Items -->
+    <div class="profile-section-title">⭐ Favourite Items</div>
+    <div class="profile-card">
+      <div id="favouritesList" class="favourites-list">
+        <p class="empty-state">Koi favourite item nahi hai.<br>Home page pe item card pe tap karein.</p>
+      </div>
+    </div>
+
+    <!-- Price Alerts -->
+    <div class="profile-section-title">🔔 Price Alerts</div>
+    <div class="profile-card">
+      <div id="alertsList" class="alerts-list">
+        <p class="empty-state">Koi alert set nahi hai.<br>Item card pe "Alert" button se set karein.</p>
+      </div>
+      <button class="add-alert-btn" id="addAlertBtn">
+        <span class="material-icons-round">add_alert</span> Naya Alert Add Karein
+      </button>
+    </div>
+
+    <!-- Market Watch -->
+    <div class="profile-section-title">📊 My Market Watch</div>
+    <div class="profile-card market-watch-card">
+      <div class="mw-row"><span class="material-icons-round">visibility</span><p>Items watched</p><strong id="mwItems">0</strong></div>
+      <div class="mw-row"><span class="material-icons-round">schedule</span><p>Last checked</p><strong id="mwTime">--</strong></div>
+      <div class="mw-row"><span class="material-icons-round">trending_up</span><p>Price changes today</p><strong id="mwChanges">--</strong></div>
+    </div>
+
+    <!-- Farmer/Shop Mode -->
+    <div class="profile-section-title">🏪 Seller Mode</div>
+    <div class="profile-card seller-card">
+      <div class="seller-options">
+        <div class="seller-opt">
+          <span>🌾</span>
+          <p>Apni fasal list karein</p>
+          <span class="coming-tag">Soon</span>
+        </div>
+        <div class="seller-opt">
+          <span>🏪</span>
+          <p>Apni dukaan register karein</p>
+          <span class="coming-tag">Soon</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="profile-section-title">⚙️ Settings</div>
+    <div class="profile-menu">
+      <div class="menu-item" id="langToggle">
+        <div class="menu-icon blue"><span class="material-icons-round">language</span></div>
+        <div class="menu-text"><p>Language</p><span id="currentLang">Hindi / English</span></div>
+        <span class="material-icons-round menu-arrow">chevron_right</span>
+      </div>
+      <div class="menu-item" id="darkModeToggle">
+        <div class="menu-icon purple"><span class="material-icons-round">dark_mode</span></div>
+        <div class="menu-text"><p>Dark Mode</p><span>Off</span></div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="darkModeCheck">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item" id="notifToggle">
+        <div class="menu-icon green"><span class="material-icons-round">notifications</span></div>
+        <div class="menu-text"><p>Notifications</p><span>On</span></div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="notifCheck" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="menu-item" id="clearChatBtn">
+        <div class="menu-icon orange"><span class="material-icons-round">chat</span></div>
+        <div class="menu-text"><p>Chat History Clear Karein</p><span>AI chat reset hoga</span></div>
+        <span class="material-icons-round menu-arrow">chevron_right</span>
+      </div>
+    </div>
+
+    <!-- Account Info -->
+    <div class="profile-section-title">👤 Account Info</div>
+    <div class="profile-card">
+      <div class="info-row"><span class="material-icons-round">email</span><span id="userEmail">--</span></div>
+      <div class="info-row"><span class="material-icons-round">verified_user</span><span>Google Account • Verified</span></div>
+      <div class="info-row"><span class="material-icons-round">calendar_today</span><span id="joinDate">--</span></div>
+    </div>
+
+    <!-- About -->
+    <div class="profile-section-title">ℹ️ About Zenvi</div>
+    <div class="profile-menu">
+      <div class="menu-item">
+        <div class="menu-icon green"><span class="material-icons-round">info</span></div>
+        <div class="menu-text"><p>About Zenvi</p><span>India ka smart mandi app</span></div>
+        <span class="material-icons-round menu-arrow">chevron_right</span>
+      </div>
+      <div class="menu-item">
+        <div class="menu-icon blue"><span class="material-icons-round">support_agent</span></div>
+        <div class="menu-text"><p>Contact Support</p><span>Help chahiye?</span></div>
+        <span class="material-icons-round menu-arrow">chevron_right</span>
+      </div>
+      <div class="menu-item">
+        <div class="menu-icon purple"><span class="material-icons-round">privacy_tip</span></div>
+        <div class="menu-text"><p>Privacy Policy</p><span>Aapka data safe hai</span></div>
+        <span class="material-icons-round menu-arrow">chevron_right</span>
+      </div>
+    </div>
+
+    <!-- Logout -->
+    <button id="logoutBtn" class="logout-btn-new">
+      <span class="material-icons-round">logout</span> Logout
+    </button>
+
+  </div><!-- end profileDetails -->
+
+  <!-- App Version -->
+  <p class="app-version">Zenvi v1.0 • Made with ❤️ in India 🇮🇳</p>
+
+  </div><!-- end profile-scroll -->
+</div>
+
+<!-- ========== BOTTOM NAV ========== -->
+<nav class="bottom-nav">
+  <div class="nav-item active" data-page="home">
+    <span class="material-icons-round">home</span><p>Home</p>
+  </div>
+  <div class="nav-item" data-page="shops">
+    <span class="material-icons-round">store</span><p>Shops</p>
+  </div>
+  <div class="nav-item ai-nav-btn" id="aiTrigger">
+    <div class="ai-fab"><span class="material-icons-round">smart_toy</span></div>
+    <p>AI</p>
+  </div>
+  <div class="nav-item" data-page="explore">
+    <span class="material-icons-round">explore</span><p>Explore</p>
+  </div>
+  <div class="nav-item" data-page="profile">
+    <span class="material-icons-round">person</span><p>Profile</p>
+  </div>
+</nav>
+
+<!-- ========== AI CHAT MODAL ========== -->
+<div id="aiModal" class="modal">
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-head">
+      <div class="ai-avatar"><span class="material-icons-round">smart_toy</span></div>
+      <div>
+        <h3>Zenvi AI</h3>
+        <span class="ai-status"><span class="dot green"></span> Online</span>
+      </div>
+      <button class="close-btn" id="closeAiModal">
+        <span class="material-icons-round">close</span>
+      </button>
+    </div>
+
+    <!-- Quick chips -->
+    <div class="quick-chips" id="quickChips">
+      <button class="chip" data-q="Aaj ka tamatar rate?">🍅 Tamatar rate</button>
+      <button class="chip" data-q="Sabse sasti sabji kaun si hai?">💚 Sasti sabji</button>
+      <button class="chip" data-q="Aaj ki market summary do">📊 Market summary</button>
+      <button class="chip" data-q="Gehu ka rate kya hai?">🌾 Gehu rate</button>
+      <button class="chip" data-q="Kya aaj kharidna sahi hai?">🛒 Kharidna chahiye?</button>
+    </div>
+
+    <div id="chatBody" class="chat-body">
+      <div class="ai-msg-wrap">
+        <div class="ai-bubble">
+          🙏 <strong>Namaste!</strong> Main Zenvi AI hoon.<br><br>
+          Main aapko in cheezein bata sakta hoon:<br>
+          • Kisi bhi sabji/anaaj ka live rate<br>
+          • Sabse sasta/mehnga item<br>
+          • Market summary aur trends<br>
+          • Kharidne ki sahi salah<br><br>
+          Kuch bhi poochein! 😊
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-wrap">
+      <input type="text" id="aiQuery" placeholder="Mandi ke baare mein poochein...">
+      <button id="sendQuery" class="send-btn">
+        <span class="material-icons-round">send</span>
       </button>
     </div>
   </div>
+</div>
 
-  <!-- ========== 🏪 SHOPS PAGE ========== -->
-  <div id="shopsPage" class="page">
-    <h2 class="page-title">Nearby Shops</h2>
-    <p class="coming-soon">
-      Shops feature coming soon.<br><br>
-      <a href="javascript:void(0)" id="registerShopLink">Register your shop</a>
-    </p>
-  </div>
-
-  <!-- ========== 👤 PROFILE PAGE ========== -->
-  <div id="profilePage" class="page">
-    <h2 class="page-title">Your Profile</h2>
-    <div class="profile-content">
-      <button id="googleLoginBtn" class="login-btn">
-        <span class="material-icons">login</span>
-        Login with Google
-      </button>
-      <p id="userName" class="user-name"></p>
-      <div id="profileDetails" class="profile-details hidden">
-        <p><strong>Email:</strong> <span id="userEmail"></span></p>
-        <button id="logoutBtn" class="logout-btn">Logout</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== 🧭 BOTTOM NAVIGATION ========== -->
-  <nav class="bottom-nav">
-    <div class="nav-item active" data-page="home">
-      <span class="material-icons">home</span>
-      <p>Home</p>
-    </div>
-    <div class="nav-item" data-page="shops">
-      <span class="material-icons">store</span>
-      <p>Shops</p>
-    </div>
-    <div class="nav-item" id="aiTrigger">
-      <span class="material-icons">smart_toy</span>
-      <p>AI</p>
-    </div>
-    <div class="nav-item" data-page="explore">
-      <span class="material-icons">explore</span>
-      <p>Explore</p>
-    </div>
-    <div class="nav-item" data-page="profile">      <span class="material-icons">person</span>
-      <p>Profile</p>
-    </div>
-  </nav>
-
-  <!-- ========== 🤖 AI CHAT MODAL ========== -->
-  <div id="aiModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>
-          <span class="material-icons">smart_toy</span>
-          Know Market AI
-        </h3>
-        <span class="close-modal" id="closeAiModal">×</span>
-      </div>
-      <div id="chatBody" class="chat-body">
-        <p class="ai-msg">
-          Namaste Sir Aditya 👋<br><br>
-          Main aapki madad kar sakta hoon:<br>
-          • 🍅 Aaj ka tamatar rate?<br>
-          • 📍 Bettiah mandi ka location?<br>
-          • 📉 Kal price kya hoga?
-        </p>
-      </div>
-      <div class="chat-input-area">
-        <input type="text" id="aiQuery" placeholder="Ask about mandi prices...">
-        <button id="sendQuery">
-          <span class="material-icons">send</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== 🔗 EXTERNAL SCRIPTS ========== -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="firebase-config.js"></script>
-  <script defer src="script.js"></script>
+<script type="module" src="firebase-config.js"></script>
+<script src="script.js" defer></script>
 </body>
-            </html>
+</html>
