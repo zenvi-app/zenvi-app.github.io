@@ -366,11 +366,16 @@ body {
   cursor: pointer; font-family: inherit;
   box-shadow: 0 4px 12px rgba(22,163,74,0.3);
   transition: all 0.2s;
+  opacity: 1 !important;
+  pointer-events: auto !important;
 }
 .confirm-btn:disabled {
-  background: #94a3b8; box-shadow: none; cursor: not-allowed;
+  background: var(--primary) !important;
+  opacity: 0.85 !important;
+  cursor: pointer !important;
+  box-shadow: none;
 }
-.confirm-btn:not(:disabled):active { background: var(--primary-dark); transform: scale(0.98); }
+.confirm-btn:active { background: var(--primary-dark); transform: scale(0.98); }
 
 /* ===== COMING SOON ===== */
 .coming-soon-page { padding: 60px 20px; text-align: center; }
