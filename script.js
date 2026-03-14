@@ -451,6 +451,9 @@ function setupSwiggyCenterPin() {
   const zoomHint = document.getElementById("zoomHint");
   const confirmBtn = document.getElementById("confirmBtn");
 
+  // Enable confirm button immediately — don't block on zoom
+  if (confirmBtn) confirmBtn.disabled = false;
+
   mapplsMap.addEventListener("movestart", () => {
     if (pin) pin.classList.add("dragging");
   });
@@ -460,16 +463,16 @@ function setupSwiggyCenterPin() {
     const center = mapplsMap.getCenter();
     currentZoom = mapplsMap.getZoom();
 
+    // Show zoom warning but DON'T disable confirm button
     const zoomWarning = document.getElementById("zoomWarning");
-    if (currentZoom < 15) {
+    if (currentZoom < 14) {
       if (zoomWarning) zoomWarning.style.display = "flex";
-      if (confirmBtn) confirmBtn.disabled = true;
     } else {
       if (zoomWarning) zoomWarning.style.display = "none";
-      if (confirmBtn) confirmBtn.disabled = false;
     }
 
-    setTimeout(() => { if (zoomHint) zoomHint.classList.add("hide"); }, 2000);
+    // Hide zoom hint after move
+    setTimeout(() => { if (zoomHint) zoomHint.classList.add("hide"); }, 1500);
 
     clearTimeout(reverseGeocodeTimer);
     reverseGeocodeTimer = setTimeout(() => {
@@ -478,7 +481,9 @@ function setupSwiggyCenterPin() {
   });
 
   setupMapSearch();
+  // Initial reverse geocode + enable confirm
   reverseGeocode(26.8018, 84.5037);
+  if (confirmBtn) confirmBtn.disabled = false;
 }
 
 async function reverseGeocode(lat, lng) {
@@ -506,12 +511,13 @@ async function reverseGeocode(lat, lng) {
     if (nameEl) nameEl.textContent = name;
     if (addrEl) addrEl.textContent = fullAddr || "";
     currentLocation = { lat, lng, name, fullAddr };
-    if (currentZoom >= 15 && confirmBtn) confirmBtn.disabled = false;
+    // Always enable confirm after geocode
+    if (confirmBtn) confirmBtn.disabled = false;
   } catch {
     if (nameEl) nameEl.textContent = "Location selected";
-    if (addrEl) addrEl.textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    if (addrEl) addrEl.textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     currentLocation = { lat, lng, name: "Selected Location", fullAddr: "" };
-    if (currentZoom >= 15 && confirmBtn) confirmBtn.disabled = false;
+    if (confirmBtn) confirmBtn.disabled = false;
   }
 }
 
@@ -523,28 +529,59 @@ function setupMapSearch() {
     clearTimeout(timer);
     const q = e.target.value.trim();
     if (q.length < 3) return;
-    timer = setTimeout(() => searchWithMappls(q), 700);
+    timer = setTimeout(() => searchLocation(q), 600);
   });
   searchInput.addEventListener("keypress", e => {
-    if (e.key === "Enter") searchWithMappls(e.target.value.trim());
+    if (e.key === "Enter") searchLocation(e.target.value.trim());
   });
 }
 
-async function searchWithMappls(query) {
+// ===== SEARCH — Nominatim (free, no API key needed) =====
+async function searchLocation(query) {
+  const searchInput = document.getElementById("locationSearchInput");
+  if (searchInput) searchInput.style.borderColor = "var(--primary)";
+
   try {
+    // Use Nominatim — free, no CORS issues, works everywhere
     const res = await fetch(
-      `https://atlas.mappls.com/api/places/v1/search?query=${encodeURIComponent(query)}&apikey=${MAPPLS_API_KEY}&size=5`
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', India')}&limit=1&addressdetails=1`,
+      { headers: { 'Accept-Language': 'hi,en' } }
     );
     const data = await res.json();
-    if (data.suggestions?.length > 0) {
-      const loc = data.suggestions[0];
-      const lat = parseFloat(loc.lat), lng = parseFloat(loc.lon || loc.lng);
-      if (mapplsMap && lat && lng) { mapplsMap.setCenter({lat,lng}); mapplsMap.setZoom(17); }
+
+    if (data && data.length > 0) {
+      const loc = data[0];
+      const lat = parseFloat(loc.lat);
+      const lng = parseFloat(loc.lon);
+      if (mapplsMap && lat && lng) {
+        mapplsMap.setCenter({ lat, lng });
+        mapplsMap.setZoom(16);
+      }
+      if (searchInput) searchInput.style.borderColor = "";
     } else {
-      alert(`"${query}" nahi mila. Koi aur naam try karein.`);
+      // Try without India suffix
+      const res2 = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
+        { headers: { 'Accept-Language': 'hi,en' } }
+      );
+      const data2 = await res2.json();
+      if (data2?.length > 0) {
+        mapplsMap?.setCenter({ lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) });
+        mapplsMap?.setZoom(16);
+      } else {
+        alert(`"${query}" nahi mila. Aur specific naam try karein.`);
+      }
+      if (searchInput) searchInput.style.borderColor = "";
     }
-  } catch { alert("Search fail ho gayi. Internet check karein."); }
+  } catch (e) {
+    console.error("Search error:", e);
+    if (searchInput) searchInput.style.borderColor = "";
+    alert("Search fail ho gayi. Internet check karein.");
+  }
 }
+
+// Keep old name for compatibility
+async function searchWithMappls(query) { return searchLocation(query); }
 
 function showSelectedLocation(latlng) {
   if (mapplsMap) { mapplsMap.setCenter({lat:latlng.lat, lng:latlng.lng}); mapplsMap.setZoom(17); }
@@ -833,7 +870,10 @@ function onProfileOpen() {
 }
 
 // ===== SPLASH SCREEN =====
+let splashHidden = false;
 function hideSplash() {
+  if (splashHidden) return; // Double splash fix
+  splashHidden = true;
   setTimeout(() => {
     const splash = document.getElementById("splashScreen");
     if (splash) {
