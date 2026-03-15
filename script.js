@@ -95,15 +95,23 @@ function renderItems(data) {
   data.forEach((item, i) => {
     const trendIcon = item.trend === "up" ? "📈" : item.trend === "down" ? "📉" : "➡️";
     const trendText = item.trend === "up" ? "Badh raha" : item.trend === "down" ? "Gir raha" : "Stable";
+    const isCommunity = item.source === "community";
     const card = document.createElement("div");
     card.className = "item-card";
     card.style.animationDelay = (i * 0.04) + "s";
     card.innerHTML = `
+      ${isCommunity ? '<span class="community-badge" title="Community verified">👥</span>' : ''}
       <span class="item-emoji">${item.emoji || '🌱'}</span>
       <h4>${escapeHtml(item.name)}</h4>
-      <div class="price">₹${item.price}<span class="price-unit">/${item.unit}</span></div>
+      <div class="price">
+        ₹${item.price}<span class="price-unit">/${item.unit}</span>
+        ${item.hasRange ? `<span class="price-range">₹${parseFloat(item.minPrice).toFixed(0)}-${parseFloat(item.maxPrice).toFixed(0)}</span>` : ''}
+      </div>
       <div class="trend ${item.trend}">${trendIcon} ${trendText}</div>
       <span class="category-tag">${escapeHtml(item.category)}</span>
+      <button class="suggest-price-btn" onclick="event.stopPropagation(); openSuggestPrice('${escapeHtml(item.name)}', '${item.price}')">
+        ✏️ Suggest Price
+      </button>
     `;
     card.addEventListener("click", () => {
       document.getElementById("searchInput").value = item.name;
@@ -112,11 +120,116 @@ function renderItems(data) {
     grid.appendChild(card);
   });
 
-  // Update stats
   updateStats(data);
   const timeEl = document.getElementById("last-update-time");
   if (timeEl) timeEl.innerText = new Date().toLocaleTimeString("hi-IN", {hour:'2-digit',minute:'2-digit'});
 }
+
+// ===== SUGGEST PRICE MODAL =====
+window.openSuggestPrice = function(itemName, currentPrice) {
+  const user = window.zenviAuth?.auth?.currentUser;
+
+  // Create modal
+  let modal = document.getElementById("suggestModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "suggestModal";
+    modal.style.cssText = `
+      position:fixed;inset:0;z-index:3000;
+      display:flex;align-items:flex-end;
+      background:rgba(0,0,0,0.5);
+    `;
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:24px 20px 40px;">
+      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 20px;"></div>
+      <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;">✏️ Price Suggest Karein</h3>
+      <p style="font-size:13px;color:#64748b;margin-bottom:20px;">${itemName} — Aaj aapne kya rate dekha?</p>
+
+      ${!user ? `
+        <div style="background:#fef3c7;border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;">
+          <p style="font-size:13px;color:#92400e;font-weight:600;">⚠️ Price suggest karne ke liye login karein</p>
+          <button onclick="window.googleLogin();document.getElementById('suggestModal').style.display='none';"
+            style="margin-top:10px;padding:10px 20px;background:#16a34a;color:white;border:none;
+            border-radius:20px;font-weight:700;cursor:pointer;font-family:inherit;">
+            Google se Login Karein
+          </button>
+        </div>
+      ` : `
+        <div style="margin-bottom:16px;">
+          <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">
+            AAPNE DEKHA RATE (₹/kg)
+          </label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:20px;font-weight:800;color:#94a3b8;">₹</span>
+            <input id="suggestPriceInput" type="number" min="1" max="50000" step="0.5"
+              placeholder="${currentPrice}"
+              style="flex:1;font-size:24px;font-weight:800;border:2px solid #e2e8f0;
+              border-radius:12px;padding:12px 16px;font-family:inherit;outline:none;color:#1e293b;">
+            <span style="font-size:16px;color:#64748b;">/kg</span>
+          </div>
+        </div>
+        <p style="font-size:12px;color:#94a3b8;margin-bottom:16px;">
+          📍 Location: ${window.currentLocation?.name || "Set location first"}
+        </p>
+        <div style="display:flex;gap:10px;">
+          <button onclick="document.getElementById('suggestModal').style.display='none';"
+            style="flex:1;padding:14px;background:#f1f5f9;color:#64748b;border:none;
+            border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
+            Cancel
+          </button>
+          <button onclick="submitSuggestion('${escapeHtml(itemName)}')"
+            style="flex:2;padding:14px;background:#16a34a;color:white;border:none;
+            border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;
+            box-shadow:0 4px 12px rgba(22,163,74,0.3);">
+            ✅ Submit Suggestion
+          </button>
+        </div>
+      `}
+      ${user ? '' : `
+        <button onclick="document.getElementById('suggestModal').style.display='none';"
+          style="width:100%;margin-top:10px;padding:14px;background:#f1f5f9;color:#64748b;
+          border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
+          Cancel
+        </button>
+      `}
+    </div>
+  `;
+
+  modal.style.display = "flex";
+  modal.addEventListener("click", e => {
+    if (e.target === modal) modal.style.display = "none";
+  });
+
+  // Focus input
+  setTimeout(() => {
+    const input = document.getElementById("suggestPriceInput");
+    if (input) input.focus();
+  }, 300);
+};
+
+window.submitSuggestion = async function(itemName) {
+  const input = document.getElementById("suggestPriceInput");
+  if (!input?.value) {
+    showToast("⚠️ Price daalen!");
+    return;
+  }
+  const modal = document.getElementById("suggestModal");
+  if (modal) modal.style.display = "none";
+
+  const success = await window.submitPriceSuggestion?.(
+    itemName,
+    input.value,
+    window.currentLocation?.name
+  );
+
+  if (success) {
+    // Auto trigger AI review after 3 seconds
+    setTimeout(() => window.aiReviewPendingSuggestions?.(), 3000);
+  }
+};
 
 // ===== UPDATE STATS ROW =====
 function updateStats(data) {
@@ -138,7 +251,14 @@ const DATA_API_URL = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a
 async function fetchLivePrices() {
   const grid = document.getElementById("itemsGrid");
   if (grid && marketData.length === 0) {
-    grid.innerHTML = '<div class="no-data"><div class="no-icon">⏳</div><p>Prices load ho rahi hain...</p></div>';
+    // Skeleton loader — shimmer cards
+    grid.innerHTML = Array(6).fill(`
+      <div class="item-card skeleton-card">
+        <div class="skel skel-emoji"></div>
+        <div class="skel skel-title"></div>
+        <div class="skel skel-price"></div>
+        <div class="skel skel-trend"></div>
+      </div>`).join('');
   }
 
   try {
@@ -149,23 +269,26 @@ async function fetchLivePrices() {
     const data = await response.json();
     if (!data.records?.length) throw new Error("No records");
 
-    // Get ALL unique commodities — average price if multiple entries
+    // Get ALL unique commodities — store min/max/avg
     const priceMap = {};
-    const countMap = {};
     for (const r of data.records) {
       if (!r.commodity || !r.modal_price) continue;
       const name = r.commodity.trim();
-      const price = parseFloat(r.modal_price);
+      const price = parseFloat(r.modal_price) / 100; // quintal → kg
       if (isNaN(price) || price <= 0) continue;
-      if (!priceMap[name]) { priceMap[name] = 0; countMap[name] = 0; }
-      priceMap[name] += price;
-      countMap[name]++;
+      if (!priceMap[name]) priceMap[name] = { sum: 0, count: 0, min: price, max: price };
+      priceMap[name].sum += price;
+      priceMap[name].count++;
+      priceMap[name].min = Math.min(priceMap[name].min, price);
+      priceMap[name].max = Math.max(priceMap[name].max, price);
     }
 
-    const rawData = Object.entries(priceMap).map(([name, total]) => ({
+    const rawData = Object.entries(priceMap).map(([name, d]) => ({
       name,
-      // API gives price per QUINTAL (100kg) — convert to per KG
-      price: (total / countMap[name]) / 100
+      price: d.sum / d.count,  // average
+      minPrice: d.min,
+      maxPrice: d.max,
+      hasRange: d.max > d.min * 1.1  // show range if >10% difference
     }));
 
     if (rawData.length === 0) throw new Error("Empty after processing");
@@ -185,6 +308,29 @@ async function fetchLivePrices() {
     renderItems(marketData);
     setDataSource("🟢 Live — data.gov.in");
     console.log("✅ Loaded", marketData.length, "unique items");
+
+    // Merge community prices from Firestore
+    if (window.loadCommunityPrices) {
+      window.loadCommunityPrices().then(communityPrices => {
+        if (communityPrices.length > 0) {
+          // Override API prices with community-verified prices
+          const names = new Set(marketData.map(i => i.name.toLowerCase()));
+          const newItems = communityPrices
+            .filter(c => !names.has(c.name.toLowerCase()))
+            .map(c => ({
+              ...c,
+              category: detectCategory(c.name),
+              trend: getPriceTrend(c.price),
+              emoji: getEmoji(c.name)
+            }));
+          if (newItems.length > 0) {
+            marketData = [...marketData, ...newItems];
+            renderItems(marketData);
+            console.log(`➕ Added ${newItems.length} community prices`);
+          }
+        }
+      });
+    }
 
   } catch (err) {
     console.warn("⚠️ API failed:", err.message);
@@ -332,27 +478,29 @@ const GEMINI_API_KEY = "AIzaSyCbs5Zne_gChTcpmawNFWKB4csS89ez6L4";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
 async function getClaudeAIResponse(userQuery) {
-  // Compact market context (token save karo)
   const top10 = marketData.slice(0, 10);
   const cheapest3 = [...marketData].sort((a,b) => parseFloat(a.price)-parseFloat(b.price)).slice(0,3);
   const expensive3 = [...marketData].sort((a,b) => parseFloat(b.price)-parseFloat(a.price)).slice(0,3);
+  const userLocation = window.currentLocation?.name || "India";
 
   const marketContext = marketData.length > 0
-    ? `Aaj ki mandi prices (wholesale, data.gov.in): ${top10.map(i=>`${i.name}=₹${i.price}`).join(", ")} ...aur ${marketData.length - 10} items`
-    : "Market data load ho raha hai.";
+    ? `Aaj ki mandi prices (wholesale): ${top10.map(i=>`${i.name}=₹${i.price}`).join(", ")} ...aur ${marketData.length - 10} items`
+    : "Market data abhi load ho raha hai.";
 
-  const systemPrompt = `Tu Zenvi AI hai — India ka mandi price assistant. Hinglish mein baat kar.
+  const systemPrompt = `Tu Zenvi AI hai — India ka smart mandi price assistant. Hinglish mein baat kar.
 
+User ki location: ${userLocation}
 ${marketContext}
 Saste: ${cheapest3.map(i=>`${i.name}(₹${i.price})`).join(", ")}
 Mehenge: ${expensive3.map(i=>`${i.name}(₹${i.price})`).join(", ")}
 
 RULES:
-- Yeh WHOLESALE mandi rates hain, retail se 20-40% kam hote hain
+- User ${userLocation} mein hai — location-specific jawab de jab relevant ho
+- Yeh WHOLESALE mandi rates hain — retail mein 20-40% zyada hoti hai
 - Sirf data mein available items ki price bata
 - Item na mile toh honestly bol
 - Short answer (3-5 lines), emojis use karo 🍅🥔🌾
-- Retail estimate bhi do: mandi rate × 1.3`;
+- Retail estimate dena: mandi rate × 1.3`;
 
   // Build conversation for Gemini format
   const geminiMessages = [];
@@ -573,8 +721,8 @@ window.initializeMapplsMap = function() {
     // Set currentLocation immediately from map center
     currentLocation = {
       lat: startLat, lng: startLng,
-      name: currentLocation?.name || "Bettiah",
-      fullAddr: currentLocation?.fullAddr || "Bettiah, Bihar"
+      name: currentLocation?.name || "",
+      fullAddr: currentLocation?.fullAddr || ""
     };
 
     setupSwiggyCenterPin();
@@ -662,61 +810,89 @@ async function reverseGeocode(lat, lng) {
   const nameEl = document.getElementById("selectedLocationName");
   const addrEl = document.getElementById("selectedLocationAddress");
 
+  if (nameEl) nameEl.textContent = "📍 Dhundh raha hai...";
+
+  // ===== TRY MAPPLS FIRST (India-specific, knows local Bihar areas) =====
   try {
-    // zoom=18 = building level detail
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1&extratags=1&namedetails=1`,
+      `https://apis.mappls.com/advancedmaps/v1/${MAPPLS_API_KEY}/rev_geocode?lat=${lat}&lng=${lng}`,
+      { signal: AbortSignal.timeout(5000) }
+    );
+    const data = await res.json();
+
+    console.log("🗺️ Mappls geocode:", JSON.stringify(data?.results?.[0]));
+
+    if (data?.results?.length > 0) {
+      const r = data.results[0];
+
+      // Mappls fields — most local first
+      const localName =
+        r.locality ||        // "Uttarwari Pokhra" — exact locality!
+        r.subLocality ||     // sub-locality
+        r.subSubLocality ||  // even smaller area
+        r.village ||         // village name
+        r.area ||            // area name
+        r.street;            // street name
+
+      const cityName = r.city || r.district || "";
+      const stateName = r.state || "";
+
+      // Clean display: "Uttarwari Pokhra, Bettiah"
+      const cleanLocal = localName?.trim();
+      const cleanCity = cityName?.trim();
+
+      let displayName;
+      if (cleanLocal && cleanCity && cleanLocal.toLowerCase() !== cleanCity.toLowerCase()) {
+        displayName = `${cleanLocal}, ${cleanCity}`;
+      } else if (cleanLocal) {
+        displayName = cleanLocal;
+      } else {
+        displayName = cleanCity || r.formatted_address?.split(",")[0] || "Selected Location";
+      }
+
+      const fullAddr = [cleanCity, stateName].filter(Boolean).join(", ");
+
+      if (nameEl) nameEl.textContent = displayName;
+      if (addrEl) addrEl.textContent = fullAddr;
+      currentLocation = { lat, lng, name: displayName, fullAddr };
+      forceEnableConfirm();
+      return; // ✅ Mappls succeeded
+    }
+  } catch(e) {
+    console.warn("Mappls geocode failed:", e.message, "— trying Nominatim");
+  }
+
+  // ===== FALLBACK: NOMINATIM =====
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
       { headers: { 'Accept-Language': 'hi,en' }, signal: AbortSignal.timeout(6000) }
     );
     const data = await res.json();
     const a = data.address || {};
 
-    // DEBUG — log full address object to see what fields are available
-    console.log("📍 Address fields:", JSON.stringify(a));
+    console.log("📍 Nominatim fields:", JSON.stringify(a));
 
-    // All possible local name fields — priority: smallest area first
     const localName =
-      a.amenity ||          // "Shastri Nagar Market"
-      a.building ||         // building name
-      a.hamlet ||           // "Uttarwari Pokhra"
-      a.neighbourhood ||    // "Shastri Nagar"
-      a.allotments ||       // colony allotment name
-      a.isolated_dwelling ||
-      a.quarter ||          // city quarter
-      a.suburb ||           // "Gulab Bagh"
-      a.city_block ||
-      a.residential ||      // residential colony
-      a.road ||             // "Station Road"
-      a.pedestrian ||
-      a.path ||
-      a.footway ||
-      a.village ||          // village name
-      a.city_district ||    // "West Champaran"
-      a.district;
+      a.hamlet || a.neighbourhood || a.quarter ||
+      a.suburb || a.road || a.residential ||
+      a.village || a.city_district || a.district;
 
-    const cityName = a.city || a.town || a.municipality || a.county || "";
+    const cityName = a.city || a.town || a.municipality || "";
     const stateName = a.state || "";
 
-    // Build display name: "Gulab Bagh, Bettiah" not "Bettiah, Bettiah"
-    let displayName;
-
-    // Clean: remove duplicates
     const cleanLocal = localName?.trim();
-    const cleanCity  = cityName?.trim();
+    const cleanCity = cityName?.trim();
 
+    let displayName;
     if (cleanLocal && cleanCity && cleanLocal.toLowerCase() !== cleanCity.toLowerCase()) {
       displayName = `${cleanLocal}, ${cleanCity}`;
     } else if (cleanLocal) {
       displayName = cleanLocal;
-    } else if (cleanCity) {
-      // No local name — try display_name parts for more detail
-      const parts = (data.display_name || "").split(",").map(s => s.trim()).filter(Boolean);
-      // Skip parts that are just numbers or match state/country
-      const filtered = parts.filter(p => p !== cleanCity && p !== stateName && p !== "India" && !/^\d/.test(p));
-      displayName = filtered.length > 0 ? `${filtered[0]}, ${cleanCity}` : cleanCity;
     } else {
-      const parts = data.display_name?.split(",").map(s => s.trim()) || [];
-      displayName = parts.slice(0, 2).join(", ") || "Selected Location";
+      const parts = (data.display_name || "").split(",").map(s => s.trim()).filter(Boolean);
+      const filtered = parts.filter(p => p !== cleanCity && p !== stateName && p !== "India" && !/^\d/.test(p));
+      displayName = filtered.length > 0 ? `${filtered[0]}, ${cleanCity}` : (cleanCity || "Selected Location");
     }
 
     const fullAddr = [cleanCity, stateName].filter(Boolean).join(", ");
@@ -727,7 +903,7 @@ async function reverseGeocode(lat, lng) {
     forceEnableConfirm();
 
   } catch(e) {
-    console.warn("Geocode failed:", e.message);
+    console.warn("Both geocodes failed:", e.message);
     const coordName = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     if (nameEl) nameEl.textContent = "Location selected ✓";
     if (addrEl) addrEl.textContent = coordName;
@@ -1124,6 +1300,61 @@ function setupSearch() {
       if (currentPage === "home") filterItems(e.target.value.trim());
     }, 250);
   });
+
+  // ===== VOICE SEARCH =====
+  const micBtn = document.getElementById("micBtn");
+  if (!micBtn) return;
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    micBtn.style.opacity = "0.4";
+    micBtn.title = "Voice search not supported";
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "hi-IN"; // Hindi first
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+
+  let isListening = false;
+
+  micBtn.addEventListener("click", () => {
+    if (isListening) {
+      recognition.stop();
+      return;
+    }
+    recognition.start();
+  });
+
+  recognition.onstart = () => {
+    isListening = true;
+    micBtn.style.color = "#ef4444";
+    micBtn.style.animation = "pulse 1s infinite";
+    showToast("🎤 Bol rahe hain... sun raha hoon");
+  };
+
+  recognition.onresult = (e) => {
+    const transcript = e.results[0][0].transcript;
+    console.log("🎤 Voice:", transcript);
+
+    // Put in search box
+    if (input) {
+      input.value = transcript;
+      filterItems(transcript);
+    }
+    showToast(`🎤 Suna: "${transcript}"`);
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error !== "no-speech") showToast("❌ Voice nahi suna. Dobara try karein.");
+  };
+
+  recognition.onend = () => {
+    isListening = false;
+    micBtn.style.color = "";
+    micBtn.style.animation = "";
+  };
 }
 
 // ===== SETUP ALL EVENTS =====
@@ -1270,21 +1501,18 @@ function addPriceAlert() {
 }
 
 function updateProfileStats() {
-  const s = document.getElementById("statSearches");
-  const f = document.getElementById("statFavourites");
-  const a = document.getElementById("statAlerts");
-  const mwItems = document.getElementById("mwItems");
-  const mwTime = document.getElementById("mwTime");
-  const mwChanges = document.getElementById("mwChanges");
-
-  if (s) s.textContent = searchCount;
-  if (f) f.textContent = favourites.length;
-  if (a) a.textContent = priceAlerts.length;
-
   const upCount = marketData.filter(i => i.trend === 'up').length;
   const downCount = marketData.filter(i => i.trend === 'down').length;
-  if (mwItems) mwItems.textContent = marketData.length;
-  if (mwTime) mwTime.textContent = "Today";
+
+  // Update new Zomato-style elements
+  const favCount = document.getElementById("favCount");
+  const alertCount = document.getElementById("alertCount");
+  const mwItems = document.getElementById("mwItems");
+  const mwChanges = document.getElementById("mwChanges");
+
+  if (favCount) favCount.textContent = `${favourites.length} items saved`;
+  if (alertCount) alertCount.textContent = `${priceAlerts.length} alerts set`;
+  if (mwItems) mwItems.textContent = `${marketData.length} items tracked`;
   if (mwChanges) mwChanges.textContent = `📈${upCount} 📉${downCount}`;
 }
 
@@ -1305,27 +1533,31 @@ function updateSavedLocation() {
 
 // Dark mode toggle
 function setupProfileSettings() {
-  document.getElementById("darkModeCheck")?.addEventListener("change", e => {
-    document.body.classList.toggle("dark-mode", e.target.checked);
-    const label = e.target.closest(".menu-item")?.querySelector(".menu-text span");
-    if (label) label.textContent = e.target.checked ? "On" : "Off";
+  // Dropdown toggle
+  document.getElementById("profileMenuBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const dd = document.getElementById("profileDropdown");
+    if (dd) dd.style.display = dd.style.display === "none" ? "block" : "none";
+  });
+  document.addEventListener("click", () => {
+    const dd = document.getElementById("profileDropdown");
+    if (dd) dd.style.display = "none";
   });
 
-  document.getElementById("notifCheck")?.addEventListener("change", e => {
-    const label = e.target.closest(".menu-item")?.querySelector(".menu-text span");
-    if (label) label.textContent = e.target.checked ? "On" : "Off";
+  document.getElementById("darkModeCheck")?.addEventListener("change", e => {
+    document.body.classList.toggle("dark-mode", e.target.checked);
   });
 
   document.getElementById("clearChatBtn")?.addEventListener("click", () => {
+    const dd = document.getElementById("profileDropdown");
+    if (dd) dd.style.display = "none";
     if (confirm("Chat history clear karein?")) {
       chatHistory = [];
       const chatBody = document.getElementById("chatBody");
       if (chatBody) chatBody.innerHTML = `<div class="ai-msg-wrap"><div class="ai-bubble">🙏 <strong>Namaste!</strong> Chat history clear ho gayi. Kuch bhi poochein!</div></div>`;
-      alert("✅ Chat history clear ho gayi!");
+      showToast("✅ Chat history cleared!");
     }
   });
-
-  document.getElementById("addAlertBtn")?.addEventListener("click", addPriceAlert);
 }
 
 // Call when profile page opens
@@ -1381,11 +1613,21 @@ window.addEventListener("pagehide", saveAppState);
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("🚀 Zenvi starting...");
+
+  // Clear old bad location data (Bettiah,Bettiah fix)
+  const badNames = ["Bettiah, Bettiah", "Bettiah,Bettiah", "Bettiah"];
+  const savedName = localStorage.getItem("zenvi_location_name");
+  if (savedName && badNames.includes(savedName.trim())) {
+    localStorage.removeItem("zenvi_location");
+    localStorage.removeItem("zenvi_location_name");
+    localStorage.removeItem("zenvi_location_addr");
+    console.log("🧹 Cleared bad location data");
+  }
+
   hideSplash();
   restoreSavedLocation();
   fetchLivePrices();
   
-  // Restore last page on refresh
   const lastPage = restoreAppState();
   showPage(lastPage);
   
