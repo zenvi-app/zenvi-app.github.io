@@ -1286,6 +1286,8 @@ function showPage(pageName) {
     setTimeout(onProfileOpen, 100);
   }
   currentPage = pageName;
+  // Save immediately on every page change
+  saveAppState();
 }
 window.showPage = showPage;
 
@@ -1586,11 +1588,10 @@ function hideSplash() {
 // ===== SAVE/RESTORE APP STATE (refresh fix) =====
 function saveAppState() {
   try {
-    const state = {
+    sessionStorage.setItem("zenvi_state", JSON.stringify({
       page: currentPage || "home",
       ts: Date.now()
-    };
-    sessionStorage.setItem("zenvi_state", JSON.stringify(state));
+    }));
   } catch(e) {}
 }
 
@@ -1599,17 +1600,21 @@ function restoreAppState() {
     const raw = sessionStorage.getItem("zenvi_state");
     if (!raw) return "home";
     const state = JSON.parse(raw);
-    // Only restore if refreshed within 30 seconds
-    if (Date.now() - state.ts < 30000 && state.page) {
+    // Restore if within 5 minutes
+    if (Date.now() - state.ts < 300000 && state.page) {
+      console.log("📱 Restoring page:", state.page);
       return state.page;
     }
   } catch(e) {}
   return "home";
 }
 
-// Save state before page unload
+// Also save on visibility change (most reliable on mobile)
 window.addEventListener("beforeunload", saveAppState);
 window.addEventListener("pagehide", saveAppState);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") saveAppState();
+});
 
 document.addEventListener("DOMContentLoaded", () => {
   console.log("🚀 Zenvi starting...");
