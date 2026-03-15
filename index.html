@@ -91,18 +91,31 @@
 <div id="explorePage" class="page">
   <div class="page-header-simple">
     <div class="back-btn" id="backBtn"><span class="material-icons-round">arrow_back</span></div>
-    <h2>Location Set Karein</h2>
+    <h2 id="exploreTitle">Location Set Karein</h2>
   </div>
+
+  <!-- Tab switcher -->
+  <div class="explore-tabs">
+    <button class="etab active" id="tabLocation" onclick="switchExploreTab('location')">
+      <span class="material-icons-round">location_on</span> Location
+    </button>
+    <button class="etab" id="tabMandis" onclick="switchExploreTab('mandis')">
+      <span class="material-icons-round">store</span> Nearby Mandis
+    </button>
+  </div>
+
+  <!-- Search box -->
   <div class="location-search-box">
     <span class="material-icons-round">search</span>
     <input type="text" id="locationSearchInput" placeholder="Area ya address dhundein..." autocomplete="off">
+    <div id="searchSuggestions" class="search-suggestions" style="display:none;"></div>
   </div>
 
-  <!-- Map with CENTER PIN (Swiggy style) -->
+  <!-- Map -->
   <div class="map-wrap">
     <div id="mapContainer"></div>
 
-    <!-- Fixed center pin — always stays in middle -->
+    <!-- Center pin (location mode only) -->
     <div class="center-pin" id="centerPin">
       <div class="pin-icon"></div>
       <div class="pin-shadow"></div>
@@ -111,7 +124,7 @@
     <!-- Zoom hint -->
     <div class="zoom-hint" id="zoomHint">
       <span class="material-icons-round">zoom_in</span>
-      Zoom in to place pin at exact location
+      Zoom in for exact location
     </div>
 
     <!-- Current Location Button -->
@@ -121,7 +134,7 @@
     </button>
   </div>
 
-  <!-- Location Card — always visible at bottom -->
+  <!-- LOCATION MODE: Confirm card -->
   <div class="loc-confirm-card" id="locationCard">
     <p class="card-sub">📦 Yahan deliver hoga</p>
     <div class="card-loc-row">
@@ -135,8 +148,18 @@
       <span class="material-icons-round">zoom_in</span>
       Exact location ke liye zoom in karein
     </div>
-    <button class="confirm-btn" id="confirmBtn" disabled>📍 Confirm Location</button>
+    <button class="confirm-btn" id="confirmBtn">📍 Confirm Location</button>
   </div>
+
+  <!-- MANDIS MODE: List panel -->
+  <div class="mandis-panel" id="mandisPanel" style="display:none;">
+    <div class="mandis-panel-header">
+      <span class="material-icons-round">store</span>
+      <p id="mandisCount">Nearby mandis dhundh raha hai...</p>
+    </div>
+    <div id="mandisList" class="mandis-list"></div>
+  </div>
+
 </div>
 
 <!-- ========== SHOPS PAGE ========== -->
