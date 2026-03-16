@@ -1,2232 +1,1214 @@
-/* ===== ZENVI SCRIPT - IMPROVED ===== */
-
-// ===== DARK MODE INSTANT RESTORE (before DOM loads) =====
-if (localStorage.getItem("zenvi_dark") === "1") {
-  document.documentElement.classList.add("dark-mode");
-}
-document.addEventListener("DOMContentLoaded", () => {
-  if (localStorage.getItem("zenvi_dark") === "1") {
-    document.body.classList.add("dark-mode");
-    const check = document.getElementById("darkModeCheck");
-    if (check) check.checked = true;
-  }
-});
-
-
-// ===== CONFIG =====
-const MAPPLS_API_KEY = "0daf1373cd967b80d2c6f73effdfd849";
-// Note: Keys are domain-restricted to zenvi-app.github.io only
-
-
-// ===== COORDINATE DETECTION HELPER =====
-function isCoordinateString(str) {
-  if (!str) return true;
-  return /^-?\d+\.\d+,?\s*-?\d+\.\d+$/.test(str.trim()) ||
-         str.trim() === "" || 
-         ["null","undefined","Selected Location","Map pe location chunein..."].includes(str.trim());
+/* ===== MATERIAL ICONS FALLBACK ===== */
+.material-icons-round {
+  font-family: 'Material Icons Round', 'Material Icons', sans-serif;
+  font-weight: normal; font-style: normal;
+  font-size: 24px; line-height: 1;
+  letter-spacing: normal; text-transform: none;
+  display: inline-block; white-space: nowrap;
+  word-wrap: normal; direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
 }
 
-// ===== STATE =====
-let marketData = [];
-let mapplsMap = null;
-let selectedMarker = null;
-let currentLocation = null;
-let chatHistory = []; // Multi-turn chat history
 
-// ===== EMOJI MAP =====
-const itemEmojis = {
-  tomato:'🍅', potato:'🥔', onion:'🧅', carrot:'🥕', cabbage:'🥬',
-  cauliflower:'🥦', brinjal:'🍆', pumpkin:'🎃', spinach:'🌿', bhindi:'🫛',
-  banana:'🍌', apple:'🍎', mango:'🥭', orange:'🍊', papaya:'🫧', guava:'🍐',
-  grapes:'🍇', watermelon:'🍉',
-  wheat:'🌾', rice:'🍚', maize:'🌽', barley:'🫘', gram:'🫘', bajra:'🌾', jowar:'🌾',
-  garlic:'🧄', ginger:'🫚', chili:'🌶️', coriander:'🌿', mint:'🌿',
-  default:'🌱'
-};
-function getEmoji(name) {
-  const n = name.toLowerCase();
-  for (const [key, emoji] of Object.entries(itemEmojis)) {
-    if (n.includes(key)) return emoji;
-  }
-  return itemEmojis.default;
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap');
+
+:root {
+  --primary: #16a34a;
+  --primary-light: #22c55e;
+  --primary-dark: #15803d;
+  --primary-glow: rgba(34,197,94,0.18);
+  --accent: #f59e0b;
+  --danger: #ef4444;
+  --bg: #f0fdf4;
+  --bg2: #ffffff;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --text2: #475569;
+  --text3: #94a3b8;
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.09);
+  --shadow-lg: 0 16px 40px rgba(0,0,0,0.12);
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
+  --r-xl: 28px;
 }
 
-// ===== CATEGORY DETECTION =====
-function detectCategory(name) {
-  const n = name.toLowerCase().trim();
-  const map = {
-    Vegetables: ["tomato","potato","onion","pumpkin","spinach","cabbage","bhindi","brinjal","cauliflower","carrot","gourd","radish","peas","okra","chili","ginger","garlic"],
-    Fruits: ["banana","apple","mango","orange","papaya","guava","grapes","watermelon","lemon","coconut"],
-    Grains: ["rice","wheat","maize","barley","gram","bajra","jowar","ragi","soybean"]
-  };
-  for (const [cat, items] of Object.entries(map)) {
-    if (items.some(i => n.includes(i))) return cat;
-  }
-  return "Others";
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Sora', 'Noto Sans Devanagari', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding-bottom: 88px;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  line-height: 1.5;
 }
 
-function getPriceTrend(price) {
-  const p = parseFloat(price);
-  if (p < 20) return "down";
-  if (p > 50) return "up";
-  return "same";
+/* ===== SPLASH ===== */
+.splash {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(160deg, #14532d 0%, #15803d 50%, #16a34a 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: opacity 0.5s ease;
+}
+.splash.hide { opacity: 0; pointer-events: none; }
+.splash-logo { text-align: center; color: white; }
+.splash-icon { font-size: 64px; margin-bottom: 16px; animation: bounceIn 0.6s ease; }
+.splash-logo h1 { font-size: 42px; font-weight: 800; letter-spacing: -1px; }
+.splash-logo p { font-size: 16px; opacity: 0.8; margin-top: 6px; }
+.splash-loader { width: 160px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 99px; margin-top: 48px; overflow: hidden; }
+.loader-bar { height: 100%; background: white; border-radius: 99px; animation: loadBar 1.8s ease forwards; }
+
+@keyframes bounceIn { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+@keyframes loadBar { 0%{width:0} 100%{width:100%} }
+
+/* ===== PAGE ===== */
+.page { display: none; animation: fadeUp 0.3s ease; }
+.page.active { display: block; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+/* ===== HEADER ===== */
+#mainHeader {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+  padding: 14px 16px 12px;
+  position: sticky; top: 0; z-index: 1200;
+  box-shadow: 0 4px 16px rgba(21,128,61,0.25);
+}
+#mainHeader.hidden { display: none !important; }
+
+.header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+
+.location-pill {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.15); border-radius: 30px;
+  padding: 8px 12px; cursor: pointer; flex: 1; min-width: 0;
+  border: 1px solid rgba(255,255,255,0.2);
+  transition: background 0.2s;
+}
+.location-pill:active { background: rgba(255,255,255,0.25); }
+.loc-icon { font-size: 18px; color: #bbf7d0; flex-shrink: 0; }
+.loc-info { flex: 1; min-width: 0; }
+.loc-label { display: block; font-size: 10px; color: rgba(255,255,255,0.75); font-weight: 600; letter-spacing: 0.5px; }
+.loc-address { display: block; font-size: 13px; color: white; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+.location-pill .material-icons-round { font-size: 16px; color: rgba(255,255,255,0.7); flex-shrink: 0; }
+
+/* Location set indicator */
+.location-set .loc-icon { color: #4ade80 !important; }
+.location-set .loc-label { color: rgba(255,255,255,0.9) !important; }
+
+/* Toast animation */
+#zenviToast {
+  animation: toastIn 0.3s ease;
+}
+@keyframes toastIn {
+  from { opacity:0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity:1; transform: translateX(-50%) translateY(0); }
 }
 
-function escapeHtml(text) {
-  if (!text) return "";
-  const d = document.createElement("div");
-  d.textContent = text;
-  return d.innerHTML;
+.header-right { display: flex; align-items: center; gap: 8px; margin-left: 10px; }
+.notif-btn, .avatar-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: 1px solid rgba(255,255,255,0.2);
+  color: white; transition: all 0.2s;
+}
+.notif-btn:active, .avatar-btn:active { background: rgba(255,255,255,0.3); transform: scale(0.95); }
+.notif-btn .material-icons-round, .avatar-btn .material-icons-round { font-size: 22px; }
+
+.search-wrap {
+  background: white; border-radius: var(--r-sm);
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.s-icon { color: var(--primary); font-size: 20px; }
+.search-wrap input { flex: 1; border: none; outline: none; font-size: 14px; font-family: inherit; color: var(--text); }
+.search-wrap input::placeholder { color: var(--text3); }
+.mic-icon { color: var(--text3); font-size: 20px; cursor: pointer; }
+.mic-icon:active { color: var(--primary); }
+
+/* ===== HERO BANNER ===== */
+.hero-banner {
+  margin: 14px 14px 0;
+  background: linear-gradient(135deg, var(--primary) 0%, #166534 100%);
+  border-radius: var(--r-xl); padding: 22px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  overflow: hidden; position: relative;
+  box-shadow: 0 8px 24px rgba(21,128,61,0.3);
+}
+.hero-banner::before {
+  content: ''; position: absolute;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: rgba(255,255,255,0.05);
+  top: -60px; right: -40px;
+}
+.hero-sub { font-size: 12px; color: #bbf7d0; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 4px; }
+.hero-title { font-size: 26px; font-weight: 800; color: white; line-height: 1.2; }
+.hero-title span { color: #86efac; }
+.live-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.15); border-radius: 20px;
+  padding: 4px 10px; margin-top: 10px;
+  font-size: 11px; color: white; font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.hero-art { font-size: 64px; line-height: 1; position: relative; z-index: 1; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; display: inline-block; animation: pulse 1.5s infinite; }
+.dot.green { background: #22c55e; }
+
+/* ===== STATS ROW ===== */
+.stats-row { display: flex; gap: 10px; margin: 14px 14px 0; }
+.stat-card {
+  flex: 1; background: var(--surface); border-radius: var(--r-md);
+  padding: 12px 10px; text-align: center;
+  box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 2px;
+}
+.stat-num { font-size: 18px; font-weight: 800; color: var(--text); }
+.stat-num.green { color: var(--primary); }
+.stat-label { font-size: 10px; color: var(--text3); font-weight: 600; }
+
+/* ===== SECTION HEADER ===== */
+.section-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 14px 8px; }
+.section-header h3 { font-size: 16px; font-weight: 700; color: var(--text); }
+.refresh-btn { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-glow); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.refresh-btn .material-icons-round { font-size: 18px; color: var(--primary); }
+.refresh-btn:active .material-icons-round { animation: spin 0.5s linear; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== CATEGORIES ===== */
+.category-row { display: flex; gap: 8px; padding: 0 14px 4px; overflow-x: auto; scrollbar-width: none; }
+.category-row::-webkit-scrollbar { display: none; }
+.cat-chip {
+  flex-shrink: 0; padding: 8px 16px; border-radius: 20px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  background: var(--surface); color: var(--text2);
+  border: 1.5px solid var(--border); transition: all 0.2s;
+  display: flex; align-items: center; gap: 5px;
+  white-space: nowrap;
+}
+.cat-chip:active { transform: scale(0.95); }
+.cat-chip.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 12px rgba(22,163,74,0.3); }
+
+/* ===== ITEMS GRID ===== */
+.items-grid { padding: 0 14px 16px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+.item-card {
+  background: var(--surface); border-radius: var(--r-md);
+  padding: 14px 12px; cursor: pointer;
+  border: 1.5px solid var(--border);
+  transition: all 0.2s ease;
+  position: relative; overflow: hidden;
+}
+.item-card::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 100%; background: var(--primary); border-radius: 3px 0 0 3px; }
+.item-card:active { transform: scale(0.97); box-shadow: var(--shadow-md); }
+.item-card .item-emoji { font-size: 24px; margin-bottom: 6px; display: block; }
+.item-card h4 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.item-card .price { font-size: 20px; font-weight: 800; color: var(--primary); }
+.item-card .price-unit { font-size: 11px; color: var(--text3); font-weight: 400; }
+.item-card .trend { display: flex; align-items: center; gap: 3px; margin-top: 6px; font-size: 11px; font-weight: 600; }
+.item-card .trend.up { color: var(--danger); }
+.item-card .trend.down { color: var(--primary); }
+.item-card .trend.same { color: var(--text3); }
+.item-card .category-tag { position: absolute; top: 10px; right: 10px; font-size: 9px; font-weight: 700; color: var(--text3); background: var(--bg); border-radius: 6px; padding: 2px 6px; }
+
+.no-data { text-align: center; padding: 48px 20px; color: var(--text3); font-size: 14px; grid-column: 1/-1; }
+.no-data .no-icon { font-size: 48px; margin-bottom: 12px; }
+
+/* Explore Tabs */
+.explore-tabs {
+  display: flex; gap: 8px; padding: 10px 14px 0;
+  flex-shrink: 0;
+}
+.etab {
+  flex: 1; padding: 10px 8px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); font-size: 13px; font-weight: 700;
+  color: var(--text2); cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.2s;
+}
+.etab .material-icons-round { font-size: 16px; }
+.etab.active {
+  background: var(--primary); color: white;
+  border-color: var(--primary);
+  box-shadow: 0 3px 10px rgba(22,163,74,0.3);
 }
 
-// ===== REMOVE DUPLICATES & AVERAGE =====
-function removeDuplicates(data) {
-  const priceMap = {};
-  data.forEach(item => {
-    const name = item.name?.trim().toLowerCase();
-    const priceKg = parseFloat(item.price) / 100;
-    if (!name || isNaN(priceKg)) return;
-    if (!priceMap[name]) priceMap[name] = [];
-    priceMap[name].push(priceKg);
-  });
-  return Object.entries(priceMap).map(([name, prices]) => {
-    const avg = prices.reduce((a,b) => a+b, 0) / prices.length;
-    const proper = name.charAt(0).toUpperCase() + name.slice(1);
-    return {
-      name: proper,
-      price: avg.toFixed(2),
-      unit: "kg",
-      category: detectCategory(name),
-      trend: getPriceTrend(avg),
-      emoji: getEmoji(name)
-    };
-  }).sort((a,b) => a.name.localeCompare(b.name));
+/* Search suggestions dropdown */
+.location-search-box { position: relative; }
+.search-suggestions {
+  position: absolute; top: 100%; left: 0; right: 0;
+  background: white; border: 1.5px solid var(--border);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  box-shadow: var(--shadow-md); z-index: 1000;
+  max-height: 200px; overflow-y: auto;
+}
+.suggestion-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.1s;
+}
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item:active { background: var(--bg); }
+.suggestion-item .material-icons-round { color: var(--text3); font-size: 18px; flex-shrink: 0; }
+.suggestion-item p { font-size: 13px; font-weight: 600; color: var(--text); margin: 0 0 1px; }
+.suggestion-item span { font-size: 11px; color: var(--text3); }
+
+/* Mandis panel */
+.mandis-panel {
+  background: white; flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  max-height: 260px; overflow-y: auto;
+}
+.mandis-panel-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg); position: sticky; top: 0;
+}
+.mandis-panel-header .material-icons-round { color: var(--primary); font-size: 18px; }
+.mandis-panel-header p { font-size: 13px; font-weight: 700; color: var(--text2); margin: 0; }
+.mandis-list { display: flex; flex-direction: column; }
+.mandi-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s;
+}
+.mandi-card:active { background: var(--bg); }
+.mandi-card-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0;
+}
+.mandi-card-info { flex: 1; }
+.mandi-card-info h4 { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 3px; }
+.mandi-card-info p { font-size: 12px; color: var(--text3); margin: 0; }
+.mandi-distance {
+  font-size: 12px; font-weight: 700; color: var(--primary);
+  background: var(--primary-glow); padding: 4px 8px; border-radius: 20px;
 }
 
-// ===== RENDER ITEMS =====
-function renderItems(data) {
-  const grid = document.getElementById("itemsGrid");
-  if (!grid) return;
-  grid.innerHTML = "";
+/* ===== EXPLORE PAGE ===== */
+#explorePage { height: calc(100vh - 88px); display: none; flex-direction: column; overflow: hidden; }
+#explorePage.active { display: flex; }
+.page-header-simple {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; background: var(--surface);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.back-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--bg); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.2s;
+}
+.back-btn:active { background: var(--border); transform: scale(0.95); }
+.page-header-simple h2 { font-size: 17px; font-weight: 700; }
 
-  if (!data || data.length === 0) {
-    grid.innerHTML = '<div class="no-data"><div class="no-icon">😕</div><p>Koi item nahi mila.<br>Kuch aur search karein.</p></div>';
-    return;
-  }
+.location-search-box {
+  display: flex; align-items: center; gap: 10px;
+  margin: 10px 14px; padding: 12px 14px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); box-shadow: var(--shadow-sm); flex-shrink: 0;
+}
+.location-search-box .material-icons-round { color: var(--primary); font-size: 20px; }
+.location-search-box input { flex: 1; border: none; outline: none; font-size: 14px; font-family: inherit; color: var(--text); }
+.location-search-box input::placeholder { color: var(--text3); }
 
-  data.forEach((item, i) => {
-    const trendIcon = item.trend === "up" ? "📈" : item.trend === "down" ? "📉" : "➡️";
-    const trendText = item.trend === "up" ? "Badh raha" : item.trend === "down" ? "Gir raha" : "Stable";
-    const isCommunity = item.source === "community";
-    const card = document.createElement("div");
-    card.className = "item-card";
-    card.style.animationDelay = (i * 0.04) + "s";
-    card.innerHTML = `
-      ${isCommunity ? '<span class="community-badge" title="Community verified">👥</span>' : ''}
-      <span class="item-emoji">${item.emoji || '🌱'}</span>
-      <h4>${escapeHtml(item.name)}</h4>
-      <div class="price">
-        ₹${item.price}<span class="price-unit">/${item.unit}</span>
-        ${item.hasRange ? `<span class="price-range">₹${parseFloat(item.minPrice).toFixed(0)}-${parseFloat(item.maxPrice).toFixed(0)}</span>` : ''}
-      </div>
-      <div class="trend ${item.trend}">${trendIcon} ${trendText}</div>
-      <span class="category-tag">${escapeHtml(item.category)}</span>
-      <div style="display:flex;gap:6px;margin-top:8px;">
-        <button class="suggest-price-btn" style="flex:1;" onclick="event.stopPropagation(); openSuggestPrice('${escapeHtml(item.name)}', '${item.price}')">
-          ✏️ Suggest
-        </button>
-        <button class="fav-toggle-btn ${isFavourite(item.name) ? 'fav-active' : ''}" 
-          onclick="event.stopPropagation(); toggleFavourite({name:'${escapeHtml(item.name)}',emoji:'${item.emoji}',price:'${item.price}',unit:'${item.unit}'}); this.classList.toggle('fav-active'); this.textContent = this.classList.contains('fav-active') ? '❤️' : '🤍';"
-          title="Favourite add karein">
-          ${isFavourite(item.name) ? '❤️' : '🤍'}
-        </button>
-      </div>
-    `;
-    card.addEventListener("click", () => {
-      document.getElementById("searchInput").value = item.name;
-      filterItems(item.name);
-    });
-    grid.appendChild(card);
-  });
+/* Map wrap */
+.map-wrap {
+  flex: 1; margin: 0 14px; border-radius: var(--r-md);
+  overflow: hidden; position: relative;
+  box-shadow: var(--shadow-md); min-height: 200px;
+}
+#mapContainer { width: 100%; height: 100%; background: #e8f5e9; }
 
-  updateStats(data);
-  const timeEl = document.getElementById("last-update-time");
-  if (timeEl) timeEl.innerText = new Date().toLocaleTimeString("hi-IN", {hour:'2-digit',minute:'2-digit'});
+/* ===== CENTER PIN (Swiggy style) ===== */
+.center-pin {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -100%);
+  z-index: 500;
+  pointer-events: none;
+  transition: transform 0.15s ease;
+  display: flex; flex-direction: column; align-items: center;
+}
+.center-pin.dragging {
+  transform: translate(-50%, -115%) scale(1.15);
 }
 
-// ===== SUGGEST PRICE MODAL =====
-window.openSuggestPrice = function(itemName, currentPrice) {
-  const user = window.zenviAuth?.auth?.currentUser;
-
-  // Create modal
-  let modal = document.getElementById("suggestModal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "suggestModal";
-    modal.style.cssText = `
-      position:fixed;inset:0;z-index:3000;
-      display:flex;align-items:flex-end;
-      background:rgba(0,0,0,0.5);
-    `;
-    document.body.appendChild(modal);
-  }
-
-  modal.innerHTML = `
-    <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:24px 20px 40px;">
-      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 20px;"></div>
-      <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;">✏️ Price Suggest Karein</h3>
-      <p style="font-size:13px;color:#64748b;margin-bottom:20px;">${itemName} — Aaj aapne kya rate dekha?</p>
-
-      ${!user ? `
-        <div style="background:#fef3c7;border-radius:12px;padding:14px;margin-bottom:16px;text-align:center;">
-          <p style="font-size:13px;color:#92400e;font-weight:600;">⚠️ Price suggest karne ke liye login karein</p>
-          <button onclick="window.googleLogin();document.getElementById('suggestModal').style.display='none';"
-            style="margin-top:10px;padding:10px 20px;background:#16a34a;color:white;border:none;
-            border-radius:20px;font-weight:700;cursor:pointer;font-family:inherit;">
-            Google se Login Karein
-          </button>
-        </div>
-      ` : `
-        <div style="margin-bottom:16px;">
-          <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">
-            AAPNE DEKHA RATE (₹/kg)
-          </label>
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span style="font-size:20px;font-weight:800;color:#94a3b8;">₹</span>
-            <input id="suggestPriceInput" type="number" min="1" max="50000" step="0.5"
-              placeholder="${currentPrice}"
-              style="flex:1;font-size:24px;font-weight:800;border:2px solid #e2e8f0;
-              border-radius:12px;padding:12px 16px;font-family:inherit;outline:none;color:#1e293b;">
-            <span style="font-size:16px;color:#64748b;">/kg</span>
-          </div>
-        </div>
-        <p style="font-size:12px;color:#94a3b8;margin-bottom:16px;">
-          📍 Location: ${window.currentLocation?.name || "Set location first"}
-        </p>
-        <div style="display:flex;gap:10px;">
-          <button onclick="document.getElementById('suggestModal').style.display='none';"
-            style="flex:1;padding:14px;background:#f1f5f9;color:#64748b;border:none;
-            border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-            Cancel
-          </button>
-          <button onclick="submitSuggestion('${escapeHtml(itemName)}')"
-            style="flex:2;padding:14px;background:#16a34a;color:white;border:none;
-            border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;
-            box-shadow:0 4px 12px rgba(22,163,74,0.3);">
-            ✅ Submit Suggestion
-          </button>
-        </div>
-      `}
-      ${user ? '' : `
-        <button onclick="document.getElementById('suggestModal').style.display='none';"
-          style="width:100%;margin-top:10px;padding:14px;background:#f1f5f9;color:#64748b;
-          border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-          Cancel
-        </button>
-      `}
-    </div>
-  `;
-
-  modal.style.display = "flex";
-  modal.addEventListener("click", e => {
-    if (e.target === modal) modal.style.display = "none";
-  });
-
-  // Focus input
-  setTimeout(() => {
-    const input = document.getElementById("suggestPriceInput");
-    if (input) input.focus();
-  }, 300);
-};
-
-window.submitSuggestion = async function(itemName) {
-  const input = document.getElementById("suggestPriceInput");
-  if (!input?.value) {
-    showToast("⚠️ Price daalen!");
-    return;
-  }
-  const modal = document.getElementById("suggestModal");
-  if (modal) modal.style.display = "none";
-
-  const success = await window.submitPriceSuggestion?.(
-    itemName,
-    input.value,
-    window.currentLocation?.name
-  );
-
-  if (success) {
-    // Auto trigger AI review after 3 seconds
-    setTimeout(() => window.aiReviewPendingSuggestions?.(), 3000);
-  }
-};
-
-// ===== UPDATE STATS ROW =====
-function updateStats(data) {
-  const statTotal = document.querySelector("#statTotal .stat-num");
-  const statCheap = document.querySelector("#statCheap .stat-num");
-  const statTime = document.querySelector("#statTime .stat-num");
-
-  if (statTotal) statTotal.textContent = data.length;
-  if (statCheap && data.length > 0) {
-    const cheapest = [...data].sort((a,b) => parseFloat(a.price) - parseFloat(b.price))[0];
-    statCheap.textContent = cheapest.name;
-  }
-  if (statTime) statTime.textContent = new Date().toLocaleTimeString("hi-IN", {hour:'2-digit',minute:'2-digit'});
+/* CSS Glossy Red Pin */
+.pin-icon {
+  width: 42px;
+  height: 42px;
+  background: radial-gradient(circle at 35% 35%, #ff6b6b, #e00000 50%, #a00000);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  position: relative;
+  box-shadow: -2px 3px 10px rgba(0,0,0,0.35), inset -2px -2px 4px rgba(0,0,0,0.2);
 }
 
-// ===== FETCH LIVE PRICES =====
-const DATA_API_URL = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd0000013a00e18ef65d4b0063eac2e34ced0b9f&format=json&limit=4000`;
-
-async function fetchLivePrices() {
-  const grid = document.getElementById("itemsGrid");
-
-  // ===== INSTANT CACHE LOAD =====
-  // Show cached data immediately while fresh data loads
-  try {
-    const cached = localStorage.getItem("zenvi_prices");
-    const cacheTime = localStorage.getItem("zenvi_prices_time");
-    const cacheAge = cacheTime ? (Date.now() - parseInt(cacheTime)) / 1000 / 60 : 999; // minutes
-
-    if (cached && cacheAge < 60) { // Cache valid for 60 minutes
-      const cachedData = JSON.parse(cached);
-      if (cachedData.length > 0) {
-        marketData = cachedData;
-        renderItems(marketData);
-        setDataSource(`🟡 Cached (${Math.round(cacheAge)}m ago)`);
-        console.log(`📦 Loaded ${marketData.length} items from cache`);
-        // Still fetch fresh in background
-      }
-    }
-  } catch(e) {}
-
-  // Show skeleton only if no cache
-  if (grid && marketData.length === 0) {
-    grid.innerHTML = Array(6).fill(`
-      <div class="item-card skeleton-card">
-        <div class="skel skel-emoji"></div>
-        <div class="skel skel-title"></div>
-        <div class="skel skel-price"></div>
-        <div class="skel skel-trend"></div>
-      </div>`).join('');
-  }
-
-  try {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 10000);
-    const response = await fetch(DATA_API_URL, { signal: controller.signal });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const data = await response.json();
-    if (!data.records?.length) throw new Error("No records");
-
-    // Get ALL unique commodities — store min/max/avg
-    const priceMap = {};
-    for (const r of data.records) {
-      if (!r.commodity || !r.modal_price) continue;
-      const name = r.commodity.trim();
-      const price = parseFloat(r.modal_price) / 100; // quintal → kg
-      if (isNaN(price) || price <= 0) continue;
-      if (!priceMap[name]) priceMap[name] = { sum: 0, count: 0, min: price, max: price };
-      priceMap[name].sum += price;
-      priceMap[name].count++;
-      priceMap[name].min = Math.min(priceMap[name].min, price);
-      priceMap[name].max = Math.max(priceMap[name].max, price);
-    }
-
-    const rawData = Object.entries(priceMap).map(([name, d]) => ({
-      name,
-      price: d.sum / d.count,
-      minPrice: d.min,
-      maxPrice: d.max,
-      hasRange: d.max > d.min * 1.1
-    }));
-
-    if (rawData.length === 0) throw new Error("Empty after processing");
-
-    marketData = rawData
-      .filter(item => item.price >= 0.5 && item.price <= 2000)
-      .map(item => ({
-        ...item,
-        price: item.price.toFixed(2),
-        unit: "kg",
-        category: detectCategory(item.name),
-        trend: getPriceTrend(item.price),
-        emoji: getEmoji(item.name)
-      }))
-      .sort((a,b) => a.name.localeCompare(b.name));
-
-    renderItems(marketData);
-    setDataSource("🟢 Live — data.gov.in");
-    console.log("✅ Loaded", marketData.length, "fresh items");
-
-    // ✅ Save to cache
-    try {
-      localStorage.setItem("zenvi_prices", JSON.stringify(marketData));
-      localStorage.setItem("zenvi_prices_time", Date.now().toString());
-    } catch(e) {}
-
-    // Merge community prices
-    if (window.loadCommunityPrices) {
-      window.loadCommunityPrices().then(communityPrices => {
-        if (communityPrices.length > 0) {
-          const names = new Set(marketData.map(i => i.name.toLowerCase()));
-          const newItems = communityPrices
-            .filter(c => !names.has(c.name.toLowerCase()))
-            .map(c => ({
-              ...c,
-              category: detectCategory(c.name),
-              trend: getPriceTrend(c.price),
-              emoji: getEmoji(c.name)
-            }));
-          if (newItems.length > 0) {
-            marketData = [...marketData, ...newItems];
-            renderItems(marketData);
-            console.log(`➕ Added ${newItems.length} community prices`);
-          }
-        }
-      });
-    }
-
-  } catch (err) {
-    console.warn("⚠️ API failed:", err.message);
-    // Use cache if available, else fallback
-    if (marketData.length > 0) {
-      setDataSource("🟡 Cached data (API offline)");
-    } else {
-      useFallbackData();
-      setDataSource("🟡 Sample data (API offline)");
-    }
-  }
+/* White circle hole in center */
+.pin-icon::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  background: white;
+  border-radius: 50%;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
 }
 
-// ===== DATA SOURCE INDICATOR =====
-function setDataSource(text) {
-  const el = document.getElementById("last-update-time");
-  if (el) el.innerText = text;
-
-  // Also update live badge
-  const liveBadge = document.querySelector(".live-badge");
-  if (liveBadge) {
-    const isLive = text.includes("Live");
-    liveBadge.style.background = isLive ? "rgba(255,255,255,0.15)" : "rgba(245,158,11,0.3)";
-    liveBadge.innerHTML = `<span class="dot" style="background:${isLive ? '#ef4444' : '#f59e0b'}"></span> ${isLive ? 'Live Update' : 'Sample Data'}`;
-  }
+/* Glossy highlight */
+.pin-icon::before {
+  content: '';
+  position: absolute;
+  width: 12px; height: 10px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 50%;
+  top: 6px; left: 6px;
+  transform: rotate(0deg);
+  filter: blur(1px);
 }
 
-// ===== FALLBACK DATA — 150+ items with Bihar-accurate prices =====
-function useFallbackData() {
-  const fallback = [
-    // 🥬 VEGETABLES
-    {n:"Tomato",p:22,c:"Vegetables"},{n:"Potato",p:18,c:"Vegetables"},
-    {n:"Onion",p:28,c:"Vegetables"},{n:"Cauliflower",p:30,c:"Vegetables"},
-    {n:"Cabbage",p:20,c:"Vegetables"},{n:"Brinjal",p:22,c:"Vegetables"},
-    {n:"Okra",p:32,c:"Vegetables"},{n:"Pumpkin",p:14,c:"Vegetables"},
-    {n:"Bitter Gourd",p:28,c:"Vegetables"},{n:"Bottle Gourd",p:15,c:"Vegetables"},
-    {n:"Ridge Gourd",p:20,c:"Vegetables"},{n:"Pointed Gourd",p:24,c:"Vegetables"},
-    {n:"Cucumber",p:18,c:"Vegetables"},{n:"Capsicum",p:55,c:"Vegetables"},
-    {n:"Green Chilli",p:35,c:"Vegetables"},{n:"Carrot",p:32,c:"Vegetables"},
-    {n:"Radish",p:16,c:"Vegetables"},{n:"Spinach",p:18,c:"Vegetables"},
-    {n:"Fenugreek",p:25,c:"Vegetables"},{n:"Coriander",p:30,c:"Vegetables"},
-    {n:"Mint",p:25,c:"Vegetables"},{n:"Colocasia",p:22,c:"Vegetables"},
-    {n:"Sweet Potato",p:20,c:"Vegetables"},{n:"Yam",p:28,c:"Vegetables"},
-    {n:"Beetroot",p:24,c:"Vegetables"},{n:"Turnip",p:16,c:"Vegetables"},
-    {n:"Drumstick",p:40,c:"Vegetables"},{n:"Raw Banana",p:20,c:"Vegetables"},
-    {n:"Green Peas",p:45,c:"Vegetables"},{n:"Cluster Beans",p:32,c:"Vegetables"},
-    {n:"Ash Gourd",p:18,c:"Vegetables"},{n:"Snake Gourd",p:22,c:"Vegetables"},
-    {n:"Flat Beans",p:35,c:"Vegetables"},{n:"Cowpea",p:38,c:"Vegetables"},
-    {n:"French Beans",p:40,c:"Vegetables"},{n:"Garlic",p:80,c:"Vegetables"},
-    {n:"Ginger",p:55,c:"Vegetables"},{n:"Green Garlic",p:30,c:"Vegetables"},
-    {n:"Curry Leaves",p:40,c:"Vegetables"},{n:"Amaranthus",p:20,c:"Vegetables"},
-
-    // 🍎 FRUITS
-    {n:"Banana",p:35,c:"Fruits"},{n:"Apple",p:110,c:"Fruits"},
-    {n:"Mango",p:75,c:"Fruits"},{n:"Orange",p:55,c:"Fruits"},
-    {n:"Papaya",p:25,c:"Fruits"},{n:"Watermelon",p:12,c:"Fruits"},
-    {n:"Grapes",p:75,c:"Fruits"},{n:"Guava",p:30,c:"Fruits"},
-    {n:"Pomegranate",p:85,c:"Fruits"},{n:"Pineapple",p:40,c:"Fruits"},
-    {n:"Lemon",p:45,c:"Fruits"},{n:"Coconut",p:22,c:"Fruits"},
-    {n:"Litchi",p:65,c:"Fruits"},{n:"Muskmelon",p:18,c:"Fruits"},
-    {n:"Jackfruit",p:20,c:"Fruits"},{n:"Pear",p:60,c:"Fruits"},
-    {n:"Plum",p:70,c:"Fruits"},{n:"Kiwi",p:120,c:"Fruits"},
-    {n:"Sapota",p:45,c:"Fruits"},{n:"Fig",p:90,c:"Fruits"},
-    {n:"Custard Apple",p:55,c:"Fruits"},{n:"Wood Apple",p:25,c:"Fruits"},
-    {n:"Date Palm",p:80,c:"Fruits"},{n:"Strawberry",p:150,c:"Fruits"},
-    {n:"Amla",p:35,c:"Fruits"},
-
-    // 🌾 GRAINS & PULSES
-    {n:"Wheat",p:28,c:"Grains"},{n:"Rice",p:52,c:"Grains"},
-    {n:"Maize",p:20,c:"Grains"},{n:"Bajra",p:26,c:"Grains"},
-    {n:"Jowar",p:24,c:"Grains"},{n:"Ragi",p:35,c:"Grains"},
-    {n:"Barley",p:22,c:"Grains"},{n:"Oats",p:45,c:"Grains"},
-    {n:"Arhar Dal",p:88,c:"Grains"},{n:"Moong Dal",p:82,c:"Grains"},
-    {n:"Masoor Dal",p:72,c:"Grains"},{n:"Urad Dal",p:85,c:"Grains"},
-    {n:"Chana Dal",p:62,c:"Grains"},{n:"Rajma",p:90,c:"Grains"},
-    {n:"Gram",p:48,c:"Grains"},{n:"Soyabean",p:45,c:"Grains"},
-    {n:"Peas Dry",p:55,c:"Grains"},{n:"Moong",p:75,c:"Grains"},
-    {n:"Urad",p:80,c:"Grains"},{n:"Lentil",p:68,c:"Grains"},
-    {n:"Black Gram",p:78,c:"Grains"},{n:"Green Gram",p:72,c:"Grains"},
-
-    // ✨ OTHERS — Spices, Oilseeds
-    {n:"Turmeric",p:68,c:"Others"},{n:"Dry Chilli",p:115,c:"Others"},
-    {n:"Coriander Seed",p:62,c:"Others"},{n:"Cumin",p:175,c:"Others"},
-    {n:"Mustard",p:52,c:"Others"},{n:"Groundnut",p:72,c:"Others"},
-    {n:"Sesame",p:105,c:"Others"},{n:"Sunflower Seed",p:62,c:"Others"},
-    {n:"Cotton",p:52,c:"Others"},{n:"Jute",p:38,c:"Others"},
-    {n:"Sugarcane",p:4,c:"Others"},{n:"Tamarind",p:55,c:"Others"},
-    {n:"Pepper",p:320,c:"Others"},{n:"Cardamom",p:900,c:"Others"},
-    {n:"Clove",p:650,c:"Others"},{n:"Nutmeg",p:350,c:"Others"},
-    {n:"Fennel",p:110,c:"Others"},{n:"Ajwain",p:120,c:"Others"},
-    {n:"Bay Leaf",p:85,c:"Others"},{n:"Asafoetida",p:450,c:"Others"},
-    {n:"Dry Ginger",p:180,c:"Others"},{n:"Til",p:95,c:"Others"},
-    {n:"Linseed",p:48,c:"Others"},{n:"Safflower",p:55,c:"Others"},
-    {n:"Castor Seed",p:52,c:"Others"},{n:"Mahua",p:28,c:"Others"},
-  ];
-
-  // Add slight random variation to prices (±10%)
-  marketData = fallback.map(item => {
-    const variation = 0.92 + Math.random() * 0.16;
-    const price = (item.p * variation);
-    return {
-      name: item.n,
-      price: price.toFixed(2),
-      unit: "kg",
-      category: item.c,
-      trend: ['up','down','stable','stable'][Math.floor(Math.random()*4)],
-      emoji: getEmoji(item.n)
-    };
-  });
-
-  renderItems(marketData);
+.pin-shadow {
+  width: 14px; height: 7px;
+  background: rgba(0,0,0,0.25);
+  border-radius: 50%;
+  margin-top: 3px;
+  filter: blur(3px);
+  transition: all 0.15s;
+}
+.center-pin.dragging .pin-shadow {
+  width: 8px; opacity: 0.3;
+  transform: translateY(6px);
 }
 
-// ===== FILTER ITEMS =====
-const hindiMap = {
-  'pyaaj':'onion','pyaj':'onion','pyaz':'onion','pyaaz':'onion',
-  'aloo':'potato','alu':'potato','aaloo':'potato',
-  'tamatar':'tomato','tamater':'tomato',
-  'gajar':'carrot','gaajar':'carrot',
-  'gobhi':'cauliflower','phool gobhi':'cauliflower',
-  'patta gobhi':'cabbage',
-  'bhindi':'okra','ladyfinger':'okra',
-  'baingan':'brinjal',
-  'matar':'peas', 'mooli':'radish', 'kaddu':'pumpkin',
-  'mirch':'chili', 'dhania':'coriander', 'podina':'mint',
-  'lehsun':'garlic', 'adrak':'ginger',
-  'kela':'banana', 'seb':'apple', 'aam':'mango',
-  'santra':'orange', 'papita':'papaya', 'tarbooj':'watermelon',
-  'gehu':'wheat', 'gehun':'wheat', 'chawal':'rice',
-  'makka':'maize', 'jau':'barley', 'chana':'gram', 'bajra':'bajra'
-};
+/* Zoom hint */
+.zoom-hint {
+  position: absolute; top: 12px; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.65); color: white;
+  border-radius: 20px; padding: 6px 14px;
+  font-size: 12px; font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap; z-index: 600;
+  backdrop-filter: blur(4px);
+  transition: opacity 0.3s;
+}
+.zoom-hint .material-icons-round { font-size: 16px; }
+.zoom-hint.hide { opacity: 0; pointer-events: none; }
 
-function filterItems(term) {
-  if (!term || !term.trim()) { renderItems(marketData); return; }
-  const searchTerm = term.toLowerCase().trim();
-  const englishTerm = hindiMap[searchTerm] || searchTerm;
-  const filtered = marketData.filter(item => {
-    const name = item.name.toLowerCase();
-    const cat = item.category.toLowerCase();
-    return name.includes(searchTerm) || name.includes(englishTerm) || cat.includes(searchTerm);
-  });
-  renderItems(filtered);
+/* Current location button */
+.my-loc-btn {
+  position: absolute; bottom: 14px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  background: white; border: 2px solid var(--primary);
+  border-radius: 30px; padding: 10px 20px;
+  font-size: 13px; font-weight: 700; color: var(--primary);
+  cursor: pointer; box-shadow: var(--shadow-md); z-index: 600;
+  white-space: nowrap; font-family: inherit; transition: all 0.2s;
+}
+.my-loc-btn:active { background: var(--primary); color: white; transform: translateX(-50%) scale(0.97); }
+.my-loc-btn .material-icons-round { font-size: 18px; }
+
+/* Location confirm card */
+.loc-confirm-card {
+  background: white; border-radius: 0;
+  padding: 16px 16px 20px; flex-shrink: 0;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  border-top: 1px solid var(--border);
+}
+.card-sub { font-size: 12px; color: var(--text3); font-weight: 600; margin-bottom: 10px; }
+.card-loc-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.pin-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--primary); flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(22,163,74,0.2);
+}
+.card-loc-text h3 { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.card-loc-text p { font-size: 12px; color: var(--text2); }
+
+.zoom-warning {
+  background: #fef3c7; border: 1px solid #f59e0b;
+  border-radius: 8px; padding: 8px 12px; margin-bottom: 10px;
+  font-size: 12px; color: #92400e; font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+}
+.zoom-warning .material-icons-round { font-size: 16px; color: #f59e0b; }
+
+.confirm-btn {
+  width: 100%; padding: 14px;
+  background: var(--primary); color: white;
+  border: none; border-radius: var(--r-sm);
+  font-size: 15px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  box-shadow: 0 4px 12px rgba(22,163,74,0.3);
+  transition: all 0.2s;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+.confirm-btn:disabled {
+  background: var(--primary) !important;
+  opacity: 0.85 !important;
+  cursor: pointer !important;
+  box-shadow: none;
+}
+.confirm-btn:active { background: var(--primary-dark); transform: scale(0.98); }
+
+/* ===== COMING SOON ===== */
+.coming-soon-page { padding: 60px 20px; text-align: center; }
+.cs-icon { font-size: 64px; margin-bottom: 16px; }
+.coming-soon-page h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.coming-soon-page p { color: var(--text2); font-size: 14px; margin-bottom: 24px; }
+.register-btn { display: inline-block; background: var(--primary); color: white; padding: 12px 24px; border-radius: var(--r-sm); font-weight: 700; text-decoration: none; font-size: 14px; }
+
+/* ===== PROFILE PAGE ===== */
+#profilePage { padding-bottom: 100px; }
+
+.profile-hero {
+  background: linear-gradient(160deg, var(--primary-dark) 0%, var(--primary) 100%);
+  padding: 32px 20px 28px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.profile-hero::before {
+  content: ''; position: absolute;
+  width: 220px; height: 220px; border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  top: -80px; right: -60px;
+}
+.profile-hero::after {
+  content: ''; position: absolute;
+  width: 150px; height: 150px; border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  bottom: -50px; left: -40px;
+}
+.profile-avatar-wrap {
+  position: relative; display: inline-block; margin-bottom: 14px;
+}
+.profile-avatar-circle {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: 3px solid rgba(255,255,255,0.4);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto; overflow: hidden;
+}
+.profile-avatar-circle .material-icons-round { font-size: 48px; color: white; }
+.profile-avatar-circle img { width: 100%; height: 100%; object-fit: cover; }
+.profile-online-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #22c55e; border: 2px solid white;
+  position: absolute; bottom: 2px; right: 2px;
+}
+.profile-name {
+  font-size: 20px; font-weight: 800; color: white; margin-bottom: 4px;
+}
+.profile-email-top { font-size: 13px; color: rgba(255,255,255,0.75); }
+
+/* Login Card */
+.profile-card {
+  background: white; margin: 14px;
+  border-radius: var(--r-lg); padding: 18px;
+  box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+}
+.login-benefits {
+  display: flex; justify-content: space-around;
+  margin-bottom: 18px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.benefit-item { text-align: center; flex: 1; }
+.benefit-item span { font-size: 24px; display: block; margin-bottom: 6px; }
+.benefit-item p { font-size: 11px; color: var(--text2); font-weight: 600; line-height: 1.3; }
+.google-login-btn {
+  width: 100%; padding: 14px;
+  background: white; color: var(--text);
+  border: 1.5px solid var(--border); border-radius: var(--r-sm);
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  font-family: inherit; display: flex; align-items: center;
+  justify-content: center; gap: 10px;
+  box-shadow: var(--shadow-sm); transition: all 0.2s;
+}
+.google-login-btn:active { background: var(--bg); transform: scale(0.98); }
+
+/* Stats Row */
+.profile-stats {
+  display: flex; align-items: center;
+  background: white; margin: 14px 14px 0;
+  border-radius: var(--r-lg); padding: 16px;
+  box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+}
+.pstat { flex: 1; text-align: center; }
+.pstat-num { display: block; font-size: 22px; font-weight: 800; color: var(--primary); }
+.pstat-label { font-size: 11px; color: var(--text3); font-weight: 600; }
+.pstat-divider { width: 1px; height: 36px; background: var(--border); }
+
+/* Menu */
+.profile-menu {
+  background: white; margin: 12px 14px 0;
+  border-radius: var(--r-lg); overflow: hidden;
+  box-shadow: var(--shadow-sm); border: 1px solid var(--border);
+}
+.menu-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background 0.15s;
+}
+.menu-item:last-child { border-bottom: none; }
+.menu-item:active { background: var(--bg); }
+.menu-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.menu-icon.green { background: #dcfce7; }
+.menu-icon.green .material-icons-round { color: var(--primary); font-size: 20px; }
+.menu-icon.orange { background: #fef3c7; }
+.menu-icon.orange .material-icons-round { color: #f59e0b; font-size: 20px; }
+.menu-icon.blue { background: #dbeafe; }
+.menu-icon.blue .material-icons-round { color: #3b82f6; font-size: 20px; }
+.menu-icon.purple { background: #f3e8ff; }
+.menu-icon.purple .material-icons-round { color: #a855f7; font-size: 20px; }
+.menu-text { flex: 1; }
+.menu-text p { font-size: 14px; font-weight: 700; color: var(--text); margin: 0; }
+.menu-text span { font-size: 11px; color: var(--text3); }
+.menu-arrow { color: var(--text3); font-size: 20px; }
+
+/* Account Info Card */
+.card-section-label {
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  letter-spacing: 1px; margin-bottom: 12px;
+}
+.info-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px; color: var(--text2);
+}
+.info-row:last-child { border-bottom: none; }
+.info-row .material-icons-round { font-size: 18px; color: var(--text3); }
+
+/* Logout */
+.logout-btn-new {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: calc(100% - 28px); margin: 12px 14px 0;
+  padding: 14px; background: #fef2f2;
+  color: #ef4444; border: 1.5px solid #fecaca;
+  border-radius: var(--r-sm); font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit; transition: all 0.2s;
+}
+.logout-btn-new:active { background: #fee2e2; transform: scale(0.98); }
+.logout-btn-new .material-icons-round { font-size: 18px; }
+
+.app-version {
+  text-align: center; font-size: 12px; color: var(--text3);
+  padding: 20px; margin-top: 4px;
 }
 
-// ===== 🤖 GEMINI AI ENGINE =====
-// Free API: aistudio.google.com → Get API Key (AIza...)
-// Free limit: 15 req/min, 1500 req/day — perfect for Zenvi!
+/* ===== BOTTOM NAV ===== */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: white; display: flex; padding: 6px 4px 10px;
+  border-top: 1px solid var(--border); justify-content: space-around;
+  align-items: center; z-index: 1300;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.06);
+}
+.nav-item { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10px; color: var(--text3); cursor: pointer; padding: 4px 12px; border-radius: var(--r-sm); transition: all 0.2s; font-weight: 600; }
+.nav-item .material-icons-round { font-size: 22px; }
+.nav-item.active { color: var(--primary); }
+.nav-item:active { transform: scale(0.92); }
+.ai-nav-btn { position: relative; }
+.ai-fab { width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(22,163,74,0.4); margin-bottom: 1px; }
+.ai-fab .material-icons-round { font-size: 22px; color: white; }
 
-const GEMINI_API_KEY = "AIzaSyCbs5Zne_gChTcpmawNFWKB4csS89ez6L4";
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+/* ===== AI MODAL ===== */
+.modal { display: none; position: fixed; inset: 0; z-index: 2000; align-items: flex-end; }
+.modal.open { display: flex; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.4); animation: fadeIn 0.2s ease; }
+.modal-sheet {
+  position: relative; width: 100%; max-height: 88vh;
+  background: white; border-radius: 24px 24px 0 0;
+  display: flex; flex-direction: column;
+  animation: slideUp 0.35s cubic-bezier(0.32,0.72,0,1);
+  z-index: 1;
+}
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+@keyframes fadeIn { from{opacity:0} to{opacity:1} }
 
-async function getClaudeAIResponse(userQuery) {
-  const top10 = marketData.slice(0, 10);
-  const cheapest3 = [...marketData].sort((a,b) => parseFloat(a.price)-parseFloat(b.price)).slice(0,3);
-  const expensive3 = [...marketData].sort((a,b) => parseFloat(b.price)-parseFloat(a.price)).slice(0,3);
-  const userLocation = window.currentLocation?.name || "India";
+.modal-handle { width: 40px; height: 4px; background: #e2e8f0; border-radius: 99px; margin: 12px auto 0; }
+.modal-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.ai-avatar { width: 40px; height: 40px; border-radius: 12px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ai-avatar .material-icons-round { font-size: 22px; color: white; }
+.modal-head h3 { font-size: 16px; font-weight: 700; }
+.ai-status { font-size: 11px; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.close-btn { margin-left: auto; width: 32px; height: 32px; border-radius: 50%; background: var(--bg); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.close-btn .material-icons-round { font-size: 18px; color: var(--text2); }
 
-  const marketContext = marketData.length > 0
-    ? `Aaj ki mandi prices (wholesale): ${top10.map(i=>`${i.name}=₹${i.price}`).join(", ")} ...aur ${marketData.length - 10} items`
-    : "Market data abhi load ho raha hai.";
+.quick-chips { display: flex; gap: 8px; padding: 12px 14px; overflow-x: auto; scrollbar-width: none; }
+.quick-chips::-webkit-scrollbar { display: none; }
+.chip { flex-shrink: 0; padding: 7px 12px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 600; color: var(--text2); cursor: pointer; white-space: nowrap; font-family: inherit; transition: all 0.15s; }
+.chip:active { background: var(--primary-glow); border-color: var(--primary); color: var(--primary); }
 
-  const systemPrompt = `Tu Zenvi AI hai — India ka smart mandi price assistant. Hinglish mein baat kar.
+.chat-body { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; max-height: 45vh; background: #f8fafc; -webkit-overflow-scrolling: touch; }
+.ai-msg-wrap { display: flex; align-items: flex-end; gap: 8px; }
+.user-msg-wrap { display: flex; justify-content: flex-end; }
+.ai-bubble { background: white; border-radius: 16px 16px 16px 4px; padding: 12px 14px; font-size: 13.5px; line-height: 1.6; color: var(--text); max-width: 85%; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
+.user-bubble { background: var(--primary); color: white; border-radius: 16px 16px 4px 16px; padding: 12px 14px; font-size: 13.5px; line-height: 1.6; max-width: 85%; }
+.typing-dots { display: flex; gap: 4px; padding: 4px 0; }
+.typing-dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--text3); animation: bounce 1.2s infinite; }
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
 
-User ki location: ${userLocation}
-${marketContext}
-Saste: ${cheapest3.map(i=>`${i.name}(₹${i.price})`).join(", ")}
-Mehenge: ${expensive3.map(i=>`${i.name}(₹${i.price})`).join(", ")}
+.chat-input-wrap { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); background: white; }
+.chat-input-wrap input { flex: 1; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--r-sm); font-size: 14px; font-family: inherit; outline: none; color: var(--text); }
+.chat-input-wrap input:focus { border-color: var(--primary); }
+.send-btn { width: 46px; height: 46px; border-radius: var(--r-sm); background: var(--primary); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(22,163,74,0.3); flex-shrink: 0; }
+.send-btn:active { background: var(--primary-dark); transform: scale(0.95); }
+.send-btn .material-icons-round { font-size: 20px; }
 
-RULES:
-- User ${userLocation} mein hai — location-specific jawab de jab relevant ho
-- Yeh WHOLESALE mandi rates hain — retail mein 20-40% zyada hoti hai
-- Sirf data mein available items ki price bata
-- Item na mile toh honestly bol
-- Short answer (3-5 lines), emojis use karo 🍅🥔🌾
-- Retail estimate dena: mandi rate × 1.3`;
+/* ===== PROFILE PAGE - EXTENDED ===== */
+.profile-scroll { overflow-y: auto; height: 100%; padding-bottom: 100px; }
+.profile-section-title {
+  font-size: 12px; font-weight: 800; color: var(--text3);
+  letter-spacing: 0.5px; padding: 16px 16px 6px;
+  text-transform: uppercase;
+}
+.profile-card.p0 { padding: 0; overflow: hidden; }
 
-  // Build conversation for Gemini format
-  const geminiMessages = [];
-
-  // Add chat history
-  for (const msg of chatHistory.slice(-6)) {
-    geminiMessages.push({
-      role: msg.role === "assistant" ? "model" : "user",
-      parts: [{ text: msg.content }]
-    });
-  }
-
-  // Add current message
-  geminiMessages.push({
-    role: "user",
-    parts: [{ text: userQuery }]
-  });
-
-  chatHistory.push({ role: "user", content: userQuery });
-
-  // Ready to call Gemini
-
-  try {
-    const response = await fetch(GEMINI_API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents: geminiMessages,
-        generationConfig: {
-          maxOutputTokens: 350,
-          temperature: 0.65
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.error("Gemini error:", err?.error?.message || response.status);
-      throw new Error("Gemini error " + response.status);
-    }
-
-    const data = await response.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!reply) throw new Error("No reply from Gemini");
-
-    chatHistory.push({ role: "assistant", content: reply });
-    return reply;
-
-  } catch (err) {
-    console.warn("Gemini failed, using local AI:", err.message);
-    const reply = getLocalAIResponse(userQuery);
-    chatHistory.push({ role: "assistant", content: reply });
-    return reply;
-  }
+/* Location row */
+.location-info-row {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+}
+.loc-icon-box {
+  width: 36px; height: 36px; background: #dcfce7; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.loc-icon-box .material-icons-round { color: var(--primary); font-size: 20px; }
+.loc-info-text { flex: 1; }
+.loc-info-text p { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 2px; }
+.loc-info-text span { font-size: 11px; color: var(--text3); }
+.change-loc-btn {
+  padding: 6px 12px; background: var(--primary-glow);
+  color: var(--primary); border: none; border-radius: 20px;
+  font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit;
 }
 
-// ===== SMART LOCAL AI — honest & data-driven =====
-function getLocalAIResponse(query) {
-  const q = query.toLowerCase().trim();
+/* Location tag in hero */
+.profile-location-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(255,255,255,0.2); border-radius: 20px;
+  padding: 4px 12px; margin-top: 8px;
+  font-size: 12px; color: white; font-weight: 600;
+}
+.profile-location-tag .material-icons-round { font-size: 14px; }
 
-  // Specific item search — only from actual data
-  for (const item of marketData) {
-    const names = [item.name.toLowerCase()];
-    for (const [hindi, eng] of Object.entries(hindiMap)) {
-      if (eng === item.name.toLowerCase()) names.push(hindi);
-    }
-    if (names.some(n => q.includes(n))) {
-      const trendText = item.trend === 'up' ? '📈 Badh raha hai' : item.trend === 'down' ? '📉 Gir raha hai' : '➡️ Stable';
-      const retailEstimate = (parseFloat(item.price) * 1.3).toFixed(0);
-      return `${item.emoji} **${item.name}**\n\n🏪 Mandi (wholesale): ₹${item.price}/kg\n🛒 Retail (dukaan/app): ~₹${retailEstimate}/kg\n${trendText}\n\n💡 Jiomart/BigBasket mein retail rate hota hai, mandi rate alag hota hai.`;
-    }
-  }
+/* Favourites */
+.favourites-list { display: flex; flex-direction: column; gap: 8px; }
+.fav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: var(--bg);
+  border-radius: 10px; border: 1px solid var(--border);
+}
+.fav-item-emoji { font-size: 22px; }
+.fav-item-info { flex: 1; }
+.fav-item-info p { font-size: 13px; font-weight: 700; margin: 0 0 1px; }
+.fav-item-info span { font-size: 11px; color: var(--primary); font-weight: 600; }
+.fav-remove { background: none; border: none; cursor: pointer; color: var(--text3); padding: 4px; }
+.fav-remove .material-icons-round { font-size: 18px; }
 
-  // Item not found
-  const commonItems = ['orange','santra','apple','grapes'];
-  if (commonItems.some(i => q.includes(i))) {
-    const name = q.includes('orange') || q.includes('santra') ? 'Orange' :
-                 q.includes('apple') || q.includes('seb') ? 'Apple' : 'Yeh item';
-    return `❌ **${name}** ka data hamare paas abhi nahi hai.\n\nHamare data mein yeh items hain:\n${marketData.slice(0,6).map(i=>`${i.emoji} ${i.name} ₹${i.price}/kg`).join(", ")}\n\nKoi aur item poochhen!`;
-  }
+/* Alerts */
+.alerts-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.alert-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: #fef3c7;
+  border-radius: 10px; border: 1px solid #fde68a;
+}
+.alert-item .material-icons-round { color: #f59e0b; font-size: 20px; }
+.alert-item p { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); margin: 0; }
+.add-alert-btn {
+  width: 100%; padding: 12px; background: var(--bg);
+  border: 1.5px dashed var(--border); border-radius: var(--r-sm);
+  font-size: 13px; font-weight: 700; color: var(--text2);
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.add-alert-btn .material-icons-round { font-size: 18px; }
 
-  if (q.includes("sast") || q.includes("cheap") || q.includes("kam rate")) {
-    const cheap = [...marketData].sort((a,b) => parseFloat(a.price)-parseFloat(b.price)).slice(0,4);
-    return `💚 **Aaj ke sabse saste items (mandi rate):**\n\n${cheap.map((i,idx)=>`${idx+1}. ${i.emoji} ${i.name} — ₹${i.price}/kg`).join("\n")}\n\n💡 Retail mein ~30% zyada hoga.`;
-  }
+/* Market Watch */
+.market-watch-card { }
+.mw-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.mw-row:last-child { border-bottom: none; }
+.mw-row .material-icons-round { color: var(--primary); font-size: 20px; flex-shrink: 0; }
+.mw-row p { flex: 1; font-size: 13px; color: var(--text2); margin: 0; }
+.mw-row strong { font-size: 14px; color: var(--text); }
 
-  if (q.includes("mehng") || q.includes("expensive") || q.includes("mahng")) {
-    const exp = [...marketData].sort((a,b) => parseFloat(b.price)-parseFloat(a.price)).slice(0,4);
-    return `💰 **Sabse mehange items (mandi rate):**\n\n${exp.map((i,idx)=>`${idx+1}. ${i.emoji} ${i.name} — ₹${i.price}/kg`).join("\n")}\n\nInhein thoda baad kharidein! ⏳`;
-  }
-
-  if (q.includes("summary") || q.includes("report") || q.includes("market")) {
-    const cheap = [...marketData].sort((a,b)=>parseFloat(a.price)-parseFloat(b.price))[0];
-    const exp = [...marketData].sort((a,b)=>parseFloat(b.price)-parseFloat(a.price))[0];
-    const up = marketData.filter(i=>i.trend==='up').length;
-    const down = marketData.filter(i=>i.trend==='down').length;
-    return `📊 **Aaj ki Mandi Report:**\n\n📦 Total items: ${marketData.length}\n💚 Sasta: ${cheap?.emoji} ${cheap?.name} (₹${cheap?.price})\n🔴 Mehnga: ${exp?.emoji} ${exp?.name} (₹${exp?.price})\n📈 Rate badhey: ${up} | 📉 Girey: ${down}\n\n⚠️ Yeh wholesale rates hain.`;
-  }
-
-  if (q.includes("retail") || q.includes("jiomart") || q.includes("bigbasket") || q.includes("dukaan") || q.includes("fark") || q.includes("difference")) {
-    return `💡 **Mandi vs Retail — Fark kyu?**\n\nMandi (wholesale) rate = kisan se bulk mein\nDukaan/App rate = +20-40% (transport, storage, profit)\n\nExample:\n🍅 Mandi: ₹20/kg → Dukaan: ₹30-35/kg\n\nZenvi mandi rate dikhata hai taki aap best deal dhoondh sako! 🎯`;
-  }
-
-  if (q.includes("help") || q.includes("kya") || q.includes("namaste") || q.includes("hello") || q.includes("hi")) {
-    return `🙏 **Namaste! Main Zenvi AI hoon.**\n\nMain bata sakta hoon:\n• Kisi bhi sabji/anaaj ka mandi rate\n• Sabse saste/mehange items\n• Market summary\n• Mandi vs retail price fark\n\nPoochhen: "Tamatar rate?" ya "Sabse sasti sabji?"`;
-  }
-
-  return `🤔 Samjha nahi. Aap poochh sakte hain:\n\n• "Tamatar ka rate kya hai?"\n• "Sabse sasti sabji?"\n• "Aaj ki market summary"\n• "Mandi aur dukaan mein fark?"`;
+/* Seller Mode */
+.seller-card { }
+.seller-options { display: flex; gap: 10px; }
+.seller-opt {
+  flex: 1; text-align: center; padding: 16px 10px;
+  background: var(--bg); border-radius: 12px; border: 1.5px solid var(--border);
+  position: relative;
+}
+.seller-opt span:first-child { font-size: 28px; display: block; margin-bottom: 6px; }
+.seller-opt p { font-size: 12px; font-weight: 600; color: var(--text2); margin: 0; }
+.coming-tag {
+  position: absolute; top: 8px; right: 8px;
+  background: #fef3c7; color: #92400e;
+  font-size: 9px; font-weight: 700; padding: 2px 6px;
+  border-radius: 10px; letter-spacing: 0.3px;
 }
 
-// ===== SEND AI MESSAGE =====
-async function sendAIMessage() {
-  const aiInput = document.getElementById("aiQuery");
-  const chatBody = document.getElementById("chatBody");
-  if (!aiInput || !chatBody) return;
+/* Toggle Switch */
+.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: #cbd5e1; border-radius: 24px; transition: 0.3s;
+}
+.toggle-slider::before {
+  content: ''; position: absolute;
+  height: 18px; width: 18px; left: 3px; bottom: 3px;
+  background: white; border-radius: 50%; transition: 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+input:checked + .toggle-slider { background: var(--primary); }
+input:checked + .toggle-slider::before { transform: translateX(20px); }
 
-  const query = aiInput.value.trim();
-  if (!query) return;
-
-  // User bubble
-  const userWrap = document.createElement("div");
-  userWrap.className = "user-msg-wrap";
-  userWrap.innerHTML = `<div class="user-bubble">${escapeHtml(query)}</div>`;
-  chatBody.appendChild(userWrap);
-  aiInput.value = "";
-  chatBody.scrollTop = chatBody.scrollHeight;
-
-  // Typing indicator
-  const typingWrap = document.createElement("div");
-  typingWrap.className = "ai-msg-wrap";
-  typingWrap.id = "typing-" + Date.now();
-  typingWrap.innerHTML = `<div class="ai-bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
-  chatBody.appendChild(typingWrap);
-  chatBody.scrollTop = chatBody.scrollHeight;
-
-  // Get Claude response
-  const response = await getClaudeAIResponse(query);
-
-  // Remove typing, add response
-  typingWrap.remove();
-
-  const aiWrap = document.createElement("div");
-  aiWrap.className = "ai-msg-wrap";
-  // Convert **bold** to <strong>
-  const formatted = response
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>');
-  aiWrap.innerHTML = `<div class="ai-bubble">${formatted}</div>`;
-  chatBody.appendChild(aiWrap);
-  chatBody.scrollTop = chatBody.scrollHeight;
+.empty-state {
+  font-size: 13px; color: var(--text3); text-align: center;
+  padding: 12px 0; line-height: 1.6;
 }
 
-// ===== MAP =====
-let reverseGeocodeTimer = null;
-let currentZoom = 14;
-const DEFAULT_LAT = 26.8018;
-const DEFAULT_LNG = 84.5037;
+/* ===== MISC ===== */
+.hidden { display: none !important; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-function initMap() {
-  if (mapplsMap) return;
-  if (document.getElementById("mappls-sdk")) {
-    // SDK already loading — wait for callback
-    setTimeout(() => {
-      if (!mapplsMap && typeof mappls !== 'undefined') window.initializeMapplsMap();
-    }, 3000);
-    return;
-  }
-
-  const script = document.createElement("script");
-  script.id = "mappls-sdk";
-  script.src = `https://apis.mappls.com/advancedmaps/api/${MAPPLS_API_KEY}/map_sdk?layer=vector&v=3.0&callback=initializeMapplsMap`;
-  script.async = true;
-
-  script.onerror = () => {
-    console.error("❌ Mappls SDK load failed — check API key and domain whitelist");
-    showMapError("Mappls load nahi hua. Domain whitelist check karein.");
-  };
-
-  document.head.appendChild(script);
-  console.log("🗺️ Loading Mappls...", window.location.hostname);
+@media (max-width: 380px) {
+  .hero-title { font-size: 22px; }
+  .items-grid { grid-template-columns: 1fr; }
+  .stats-row { gap: 6px; }
 }
 
-function showMapError(msg) {
-  const c = document.getElementById("mapContainer");
-  if (!c) return;
-  c.innerHTML = `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-      height:100%;background:#f0fdf4;gap:12px;padding:20px;text-align:center;">
-      <span style="font-size:48px;">🗺️</span>
-      <p style="font-weight:700;color:#16a34a;">${msg}</p>
-      <p style="font-size:12px;color:#64748b;">
-        Mappls Console → API Key → Whitelist mein add karein:<br>
-        <strong>zenvi-app.github.io</strong>
-      </p>
-      <button onclick="document.getElementById('mappls-sdk')?.remove();mapplsMap=null;initMap();"
-        style="padding:10px 24px;background:#16a34a;color:white;border:none;
-        border-radius:20px;font-weight:700;cursor:pointer;font-family:inherit;">
-        🔄 Retry
-      </button>
-    </div>`;
-  forceEnableConfirm();
+/* ===== ZOMATO/SWIGGY STYLE PROFILE ===== */
+#profilePage { background: #f1f5f9; }
+.profile-scroll { overflow-y: auto; height: 100%; padding-bottom: 100px; }
+
+/* Header */
+.zp-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; background: white;
+  border-bottom: 1px solid #f1f5f9;
+  position: relative;
+}
+.zp-back {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text);
+}
+.zp-back:active { background: var(--bg); }
+.zp-title { flex: 1; font-size: 17px; font-weight: 800; color: var(--text); }
+.zp-menu-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2);
+}
+.zp-menu-btn:active { background: var(--bg); }
+
+/* Dropdown */
+.zp-dropdown {
+  position: absolute; top: 52px; right: 8px;
+  background: #1e293b; border-radius: 12px;
+  overflow: hidden; z-index: 999;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  min-width: 180px;
+}
+.zp-dropdown-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px; color: white; font-size: 14px;
+  font-weight: 600; cursor: pointer; transition: background 0.15s;
+}
+.zp-dropdown-item:active { background: rgba(255,255,255,0.1); }
+.zp-dropdown-item .material-icons-round { font-size: 18px; color: rgba(255,255,255,0.7); }
+.zp-dropdown-item.logout-item { color: #f87171; border-top: 1px solid rgba(255,255,255,0.1); }
+.zp-dropdown-item.logout-item .material-icons-round { color: #f87171; }
+
+/* User Card */
+.zp-user-card {
+  display: flex; align-items: center; gap: 14px;
+  background: white; padding: 18px 16px;
+  margin-bottom: 8px;
+}
+.zp-avatar {
+  width: 62px; height: 62px; border-radius: 50%;
+  background: #f0fdf4; border: 2px solid #dcfce7;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; overflow: hidden;
+}
+.zp-user-info { flex: 1; }
+.zp-user-info h2 { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 3px; }
+.zp-user-info p { font-size: 12px; color: var(--text3); }
+.zp-edit-btn {
+  display: flex; align-items: center; gap: 2px;
+  cursor: pointer; padding: 6px;
 }
 
-window.initializeMapplsMap = function() {
-  const mapContainer = document.getElementById("mapContainer");
-  if (!mapContainer || typeof mappls === 'undefined') return;
-  try {
-    // Start at saved location or default
-    const startLat = currentLocation?.lat || DEFAULT_LAT;
-    const startLng = currentLocation?.lng || DEFAULT_LNG;
+/* Login Card */
+.zp-login-card {
+  background: white; margin: 0 0 8px;
+  padding: 18px 16px;
+}
+.zp-login-benefits {
+  display: flex; justify-content: space-around;
+  margin-bottom: 16px; padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.zp-benefit { text-align: center; }
+.zp-benefit span { font-size: 22px; display: block; margin-bottom: 4px; }
+.zp-benefit p { font-size: 11px; color: var(--text2); font-weight: 600; }
+.zp-google-btn {
+  width: 100%; padding: 13px;
+  background: white; color: var(--text);
+  border: 1.5px solid var(--border); border-radius: 10px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  font-family: inherit; display: flex; align-items: center;
+  justify-content: center; gap: 10px;
+  transition: all 0.2s;
+}
+.zp-google-btn:active { background: var(--bg); }
 
-    mapplsMap = new mappls.Map("mapContainer", {
-      center: { lat: startLat, lng: startLng },
-      zoom: 14, zoomControl: true, attributionControl: false
-    });
+/* Quick Row */
+.zp-quick-row {
+  display: flex; background: white;
+  margin-bottom: 8px; padding: 4px 0;
+}
+.zp-quick-item {
+  flex: 1; padding: 14px 8px; text-align: center; cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: background 0.15s;
+}
+.zp-quick-item:last-child { border-right: none; }
+.zp-quick-item:active { background: var(--bg); }
+.zp-quick-item .material-icons-round { font-size: 22px; color: var(--primary); display: block; margin-bottom: 4px; }
+.zp-quick-item p { font-size: 11px; font-weight: 700; color: var(--text2); }
 
-    // Only set currentLocation if user has already set one
-    // Don't overwrite with default coordinates
-    if (!currentLocation?.name || currentLocation.name.match(/\d+\.\d+/)) {
-      currentLocation = { lat: startLat, lng: startLng, name: "", fullAddr: "" };
-    }
-
-    setupSwiggyCenterPin();
-    forceEnableConfirm();
-    console.log("✅ Map initialized at:", startLat, startLng);
-  } catch (e) { console.error("Map error:", e); }
-};
-
-function forceEnableConfirm() {
-  const btn = document.getElementById("confirmBtn");
-  if (!btn) return;
-  btn.disabled = false;
-  btn.removeAttribute("disabled");
-  btn.style.cssText = "background:var(--primary);opacity:1;cursor:pointer;pointer-events:auto;";
+/* Section Label */
+.zp-section-label {
+  font-size: 11px; font-weight: 800; color: #94a3b8;
+  letter-spacing: 0.8px; padding: 14px 16px 6px;
+  background: #f1f5f9;
 }
 
-// ===== CENTER PIN SETUP =====
-function setupSwiggyCenterPin() {
-  if (!mapplsMap) return;
-  const pin = document.getElementById("centerPin");
-  const zoomHint = document.getElementById("zoomHint");
+/* Menu Group */
+.zp-menu-group {
+  background: white; margin-bottom: 8px;
+}
+.zp-menu-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 15px 16px; border-bottom: 1px solid #f8fafc;
+  cursor: pointer; transition: background 0.15s;
+}
+.zp-menu-row:last-child { border-bottom: none; }
+.zp-menu-row:active { background: #fafafa; }
 
-  forceEnableConfirm();
+.zp-row-icon {
+  font-size: 20px !important; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.zp-row-icon.green { background: #dcfce7; color: #16a34a !important; }
+.zp-row-icon.red { background: #fee2e2; color: #ef4444 !important; }
+.zp-row-icon.orange { background: #fef3c7; color: #f59e0b !important; }
+.zp-row-icon.blue { background: #dbeafe; color: #3b82f6 !important; }
+.zp-row-icon.purple { background: #f3e8ff; color: #a855f7 !important; }
 
-  mapplsMap.addEventListener("movestart", () => {
-    if (pin) pin.classList.add("dragging");
-    // Update location immediately on move start too
-    const center = mapplsMap.getCenter();
-    if (center) {
-      currentLocation = {
-        lat: center.lat, lng: center.lng,
-        name: currentLocation?.name || "Selecting...",
-        fullAddr: currentLocation?.fullAddr || ""
-      };
-    }
-  });
+.zp-row-text { flex: 1; }
+.zp-row-text p { font-size: 14px; font-weight: 700; color: var(--text); margin: 0 0 2px; }
+.zp-row-text span { font-size: 12px; color: var(--text3); }
+.zp-row-arrow { color: #cbd5e1 !important; font-size: 20px !important; }
 
-  mapplsMap.addEventListener("moveend", () => {
-    if (pin) pin.classList.remove("dragging");
-
-    try {
-      const center = mapplsMap.getCenter();
-      if (!center) return;
-      currentZoom = mapplsMap.getZoom();
-
-      const lat = parseFloat(center.lat);
-      const lng = parseFloat(center.lng);
-
-      // ✅ IMMEDIATELY update currentLocation — confirm will always work
-      currentLocation = {
-        lat, lng,
-        name: "",
-        fullAddr: ""
-      };
-
-      forceEnableConfirm();
-
-      // Update card to show loading
-      const nameEl = document.getElementById("selectedLocationName");
-      if (nameEl) nameEl.textContent = "📍 Dhundh raha hai...";
-
-      // Zoom warning (just visual, don't block confirm)
-      const zoomWarning = document.getElementById("zoomWarning");
-      if (zoomWarning) zoomWarning.style.display = currentZoom < 13 ? "flex" : "none";
-
-      // Hide zoom hint
-      setTimeout(() => { if (zoomHint) zoomHint.classList.add("hide"); }, 1500);
-
-      // Get proper name via reverse geocode
-      clearTimeout(reverseGeocodeTimer);
-      reverseGeocodeTimer = setTimeout(() => reverseGeocode(lat, lng), 400);
-
-    } catch(e) { console.error("moveend error:", e); }
-  });
-
-  setupMapSearch();
-
-  // Initial geocode for default location
-  const initLat = currentLocation?.lat || DEFAULT_LAT;
-  const initLng = currentLocation?.lng || DEFAULT_LNG;
-  reverseGeocode(initLat, initLng);
+.zp-coming-chip {
+  font-size: 10px; font-weight: 800; color: #f59e0b;
+  background: #fef3c7; padding: 3px 8px; border-radius: 20px;
+  letter-spacing: 0.3px;
 }
 
-async function reverseGeocode(lat, lng) {
-  const nameEl = document.getElementById("selectedLocationName");
-  const addrEl = document.getElementById("selectedLocationAddress");
-
-  if (nameEl) nameEl.textContent = "📍 Dhundh raha hai...";
-
-  // ===== TRY MAPPLS FIRST (India-specific, knows local Bihar areas) =====
-  try {
-    const res = await fetch(
-      `https://apis.mappls.com/advancedmaps/v1/${MAPPLS_API_KEY}/rev_geocode?lat=${lat}&lng=${lng}`,
-      { signal: AbortSignal.timeout(5000) }
-    );
-    const data = await res.json();
-
-    console.log("🗺️ Mappls geocode:", JSON.stringify(data?.results?.[0]));
-
-    if (data?.results?.length > 0) {
-      const r = data.results[0];
-
-      // Mappls fields — most local first
-      const localName =
-        r.locality ||        // "Uttarwari Pokhra" — exact locality!
-        r.subLocality ||     // sub-locality
-        r.subSubLocality ||  // even smaller area
-        r.village ||         // village name
-        r.area ||            // area name
-        r.street;            // street name
-
-      const cityName = r.city || r.district || "";
-      const stateName = r.state || "";
-
-      // Clean display: "Uttarwari Pokhra, Bettiah"
-      const cleanLocal = localName?.trim();
-      const cleanCity = cityName?.trim();
-
-      let displayName;
-      if (cleanLocal && cleanCity && cleanLocal.toLowerCase() !== cleanCity.toLowerCase()) {
-        displayName = `${cleanLocal}, ${cleanCity}`;
-      } else if (cleanLocal) {
-        displayName = cleanLocal;
-      } else {
-        displayName = cleanCity || r.formatted_address?.split(",")[0] || "Nearby Area";
-      }
-
-      const fullAddr = [cleanCity, stateName].filter(Boolean).join(", ");
-
-      if (nameEl) nameEl.textContent = displayName;
-      if (addrEl) addrEl.textContent = fullAddr;
-      currentLocation = { lat, lng, name: displayName, fullAddr };
-      forceEnableConfirm();
-      return; // ✅ Mappls succeeded
-    }
-  } catch(e) {
-    console.warn("Mappls geocode failed:", e.message, "— trying Nominatim");
-  }
-
-  // ===== FALLBACK: NOMINATIM =====
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      { headers: { 'Accept-Language': 'hi,en' }, signal: AbortSignal.timeout(6000) }
-    );
-    const data = await res.json();
-    const a = data.address || {};
-
-    console.log("📍 Nominatim fields:", JSON.stringify(a));
-
-    const localName =
-      a.hamlet || a.neighbourhood || a.quarter ||
-      a.suburb || a.road || a.residential ||
-      a.village || a.city_district || a.district;
-
-    const cityName = a.city || a.town || a.municipality || "";
-    const stateName = a.state || "";
-
-    const cleanLocal = localName?.trim();
-    const cleanCity = cityName?.trim();
-
-    let displayName;
-    if (cleanLocal && cleanCity && cleanLocal.toLowerCase() !== cleanCity.toLowerCase()) {
-      displayName = `${cleanLocal}, ${cleanCity}`;
-    } else if (cleanLocal) {
-      displayName = cleanLocal;
-    } else {
-      const parts = (data.display_name || "").split(",").map(s => s.trim()).filter(Boolean);
-      const filtered = parts.filter(p => p !== cleanCity && p !== stateName && p !== "India" && !/^\d/.test(p));
-      displayName = filtered.length > 0 ? `${filtered[0]}, ${cleanCity}` : (cleanCity || "Selected Location");
-    }
-
-    const fullAddr = [cleanCity, stateName].filter(Boolean).join(", ");
-
-    if (nameEl) nameEl.textContent = displayName;
-    if (addrEl) addrEl.textContent = fullAddr || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
-    currentLocation = { lat, lng, name: displayName, fullAddr };
-    forceEnableConfirm();
-
-  } catch(e) {
-    console.warn("Both geocodes failed:", e.message);
-    if (nameEl) nameEl.textContent = "Location selected ✓";
-    if (addrEl) addrEl.textContent = "";
-    // Keep lat/lng but no coordinate string as name
-    if (currentLocation) {
-      currentLocation.name = "";
-      currentLocation.fullAddr = "";
-    }
-    forceEnableConfirm();
-  }
+.zp-account-info {
+  padding: 12px 16px; text-align: center;
 }
 
-// ===== EXPLORE TABS + NEARBY MANDIS =====
-let exploreMode = 'location';
-let mandiMarkers = [];
+/* ===== COMMUNITY PRICE SYSTEM ===== */
+.suggest-price-btn {
+  width: 100%; margin-top: 8px;
+  padding: 7px; background: #f0fdf4;
+  border: 1.5px solid #bbf7d0; border-radius: 8px;
+  font-size: 11px; font-weight: 700; color: #16a34a;
+  cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.suggest-price-btn:active { background: #dcfce7; transform: scale(0.97); }
 
-window.switchExploreTab = function(mode) {
-  exploreMode = mode;
-  const locCard = document.getElementById("locationCard");
-  const mandisPanel = document.getElementById("mandisPanel");
-  const centerPin = document.getElementById("centerPin");
-  const title = document.getElementById("exploreTitle");
-
-  document.querySelectorAll(".etab").forEach(t => t.classList.remove("active"));
-  document.getElementById("tab" + mode.charAt(0).toUpperCase() + mode.slice(1))?.classList.add("active");
-
-  if (mode === 'location') {
-    if (locCard) locCard.style.display = "block";
-    if (mandisPanel) mandisPanel.style.display = "none";
-    if (centerPin) centerPin.style.display = "flex";
-    if (title) title.textContent = "Location Set Karein";
-  } else {
-    if (locCard) locCard.style.display = "none";
-    if (mandisPanel) mandisPanel.style.display = "block";
-    if (centerPin) centerPin.style.display = "none";
-    if (title) title.textContent = "Nearby Mandis";
-    loadNearbyMandis();
-  }
-};
-
-// Mandis Database — coordinates verified
-const MANDIS_DB = [
-  { name: "Bettiah Mandi",       area: "Bettiah, West Champaran", lat: 26.8048, lng: 84.5076, type: "Sabji & Anaaj", emoji: "🌾" },
-  { name: "Narkatiaganj Mandi",  area: "Narkatiaganj, Bihar",     lat: 27.1006, lng: 84.4773, type: "Sabji Mandi",   emoji: "🥬" },
-  { name: "Motihari Mandi",      area: "Motihari, East Champaran",lat: 26.6500, lng: 84.9170, type: "Anaaj Mandi",  emoji: "🌾" },
-  { name: "Bagaha Mandi",        area: "Bagaha, Bihar",           lat: 27.1041, lng: 84.0888, type: "Phal & Sabji", emoji: "🍎" },
-  { name: "Raxaul Mandi",        area: "Raxaul, Bihar",           lat: 26.9873, lng: 84.8498, type: "Border Mandi", emoji: "🏪" },
-  { name: "Muzaffarpur Mandi",   area: "Muzaffarpur, Bihar",      lat: 26.1197, lng: 85.3910, type: "Wholesale",    emoji: "🏪" },
-  { name: "Sitamarhi Mandi",     area: "Sitamarhi, Bihar",        lat: 26.5941, lng: 85.4894, type: "Sabji Mandi",  emoji: "🥬" },
-  { name: "Gopalganj Mandi",     area: "Gopalganj, Bihar",        lat: 26.4697, lng: 84.4371, type: "Anaaj Mandi",  emoji: "🌾" },
-  { name: "Siwan Mandi",         area: "Siwan, Bihar",            lat: 26.2206, lng: 84.3549, type: "Sabji & Phal", emoji: "🍅" },
-  { name: "Patna Main Mandi",    area: "Patna, Bihar",            lat: 25.6093, lng: 85.1235, type: "Wholesale",    emoji: "🏪" },
-  { name: "Hajipur Mandi",       area: "Hajipur, Bihar",          lat: 25.6887, lng: 85.2088, type: "Kela Mandi",  emoji: "🍌" },
-  { name: "Chapra Mandi",        area: "Chapra, Bihar",           lat: 25.7812, lng: 84.7474, type: "Sabji Mandi",  emoji: "🥬" },
-];
-
-function getDistanceKm(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const toRad = x => x * Math.PI / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a = Math.sin(dLat/2)**2 +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
-  const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return Math.round(dist); // Round to whole number
+.community-badge {
+  position: absolute; top: 8px; left: 8px;
+  font-size: 12px; background: #dcfce7;
+  padding: 2px 6px; border-radius: 20px;
 }
 
-function loadNearbyMandis() {
-  // Use GPS location if available, otherwise saved, otherwise default
-  const userLat = currentLocation?.lat || DEFAULT_LAT;
-  const userLng = currentLocation?.lng || DEFAULT_LNG;
+/* ===== SKELETON LOADER ===== */
+.skeleton-card { pointer-events: none; }
+.skel {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+.skel-emoji { width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 10px; }
+.skel-title { width: 80%; height: 14px; margin: 0 auto 12px; }
+.skel-price { width: 60%; height: 22px; margin: 0 auto 10px; }
+.skel-trend { width: 50%; height: 12px; margin: 0 auto; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-  const sorted = MANDIS_DB
-    .map(m => ({ ...m, distance: getDistanceKm(userLat, userLng, m.lat, m.lng) }))
-    .sort((a, b) => a.distance - b.distance);
-
-  const countEl = document.getElementById("mandisCount");
-  if (countEl) {
-    const nearest = sorted[0];
-    countEl.textContent = `${sorted.length} mandis — Nearest: ${nearest.name} (${nearest.distance} km)`;
-  }
-
-  const list = document.getElementById("mandisList");
-  if (list) {
-    list.innerHTML =
-      `<div style="padding:8px 16px;font-size:11px;color:#94a3b8;background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-        📏 Seedhi doori — actual road distance thodi zyada hogi
-      </div>` +
-      sorted.map(m => `
-        <div class="mandi-card" onclick="focusMandi(${m.lat}, ${m.lng}, '${m.name}')">
-          <div class="mandi-card-icon">${m.emoji}</div>
-          <div class="mandi-card-info">
-            <h4>${m.name}</h4>
-            <p>${m.area} • ${m.type}</p>
-          </div>
-          <span class="mandi-distance">${m.distance} km</span>
-        </div>`
-      ).join('');
-  }
-
-  if (mapplsMap) {
-    mapplsMap.setCenter({ lat: userLat, lng: userLng });
-    mapplsMap.setZoom(8);
-  }
+/* ===== PRICE RANGE ===== */
+.price-range {
+  display: block; font-size: 10px; color: #94a3b8;
+  font-weight: 600; margin-top: 2px;
 }
 
-window.focusMandi = function(lat, lng, name) {
-  if (mapplsMap) {
-    mapplsMap.setCenter({ lat, lng });
-    mapplsMap.setZoom(14);
-  }
-  const title = document.getElementById("exploreTitle");
-  if (title) title.textContent = name;
-};
-
-function setupMapSearch() {
-  const searchInput = document.getElementById("locationSearchInput");
-  const suggestionsBox = document.getElementById("searchSuggestions");
-  if (!searchInput) return;
-
-  let timer;
-  searchInput.addEventListener("input", e => {
-    clearTimeout(timer);
-    const q = e.target.value.trim();
-    if (q.length < 2) {
-      if (suggestionsBox) suggestionsBox.style.display = "none";
-      return;
-    }
-    timer = setTimeout(() => fetchSuggestions(q), 400);
-  });
-
-  searchInput.addEventListener("keypress", e => {
-    if (e.key === "Enter") {
-      if (suggestionsBox) suggestionsBox.style.display = "none";
-      searchLocation(e.target.value.trim());
-    }
-  });
-
-  document.addEventListener("click", e => {
-    if (!searchInput.contains(e.target) && suggestionsBox && !suggestionsBox.contains(e.target)) {
-      suggestionsBox.style.display = "none";
-    }
-  });
+/* ===== DARK MODE ===== */
+body.dark-mode {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --border: #334155;
+  --text: #f1f5f9;
+  --text2: #cbd5e1;
+  --text3: #94a3b8;
+  background: #0f172a;
+  color: #f1f5f9;
 }
 
-async function fetchSuggestions(query) {
-  const box = document.getElementById("searchSuggestions");
-  if (!box) return;
+/* Pages */
+body.dark-mode .page { background: #0f172a; }
+body.dark-mode #profilePage { background: #0f172a; }
 
-  // Show loading
-  box.innerHTML = `<div class="suggestion-item"><span class="material-icons-round">hourglass_empty</span><div><p>Dhundh raha hai...</p></div></div>`;
-  box.style.display = "block";
+/* Header */
+body.dark-mode header { background: linear-gradient(160deg, #14532d 0%, #166534 100%); }
 
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=6&addressdetails=1`,
-      { headers: { 'Accept-Language': 'hi,en' }, signal: AbortSignal.timeout(6000) }
-    );
-    const data = await res.json();
-    if (data?.length > 0) {
-      box.innerHTML = data.map(item => {
-        const a = item.address || {};
-        // Show most local name
-        const name = a.hamlet || a.neighbourhood || a.suburb || a.village ||
-                     a.town || a.city || item.display_name.split(',')[0];
-        const city = a.city || a.town || a.district || "";
-        const state = a.state || "";
-        const detail = [city !== name ? city : "", state].filter(Boolean).join(", ");
-        const safeName = name.replace(/'/g, "\'").replace(/"/g, '');
-        return `<div class="suggestion-item" onclick="selectSuggestion(${item.lat}, ${item.lon}, '${safeName}', '${detail.replace(/'/g,"\'")}')">
-          <span class="material-icons-round">location_on</span>
-          <div><p>${name}</p><span>${detail}</span></div>
-        </div>`;
-      }).join('');
-      box.style.display = "block";
-    } else {
-      box.innerHTML = `<div class="suggestion-item"><span class="material-icons-round">search_off</span><div><p>Koi result nahi mila</p><span>Dusra naam try karein</span></div></div>`;
-    }
-  } catch(e) {
-    console.warn("Suggestions failed:", e.message);
-    box.innerHTML = `<div class="suggestion-item"><span class="material-icons-round">wifi_off</span><div><p>Internet check karein</p></div></div>`;
-  }
+/* Cards */
+body.dark-mode .item-card { background: #1e293b; border-color: #334155; color: #f1f5f9; }
+body.dark-mode .item-card h4 { color: #f1f5f9; }
+body.dark-mode .stat-card { background: #1e293b; border-color: #334155; }
+body.dark-mode .stat-card .stat-label { color: #94a3b8; }
+
+/* Search */
+body.dark-mode .search-wrap { background: #1e293b; border-color: #334155; }
+body.dark-mode .search-wrap input { color: #f1f5f9; background: transparent; }
+body.dark-mode .search-wrap input::placeholder { color: #64748b; }
+
+/* Category chips */
+body.dark-mode .category-chips { background: #0f172a; }
+body.dark-mode .cat-chip { background: #1e293b; border-color: #334155; color: #94a3b8; }
+body.dark-mode .cat-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* Hero banner */
+body.dark-mode .hero-banner { background: linear-gradient(135deg, #14532d, #166534); }
+
+/* Section headers */
+body.dark-mode .section-header h3 { color: #f1f5f9; }
+
+/* Nav */
+body.dark-mode .bottom-nav { background: #1e293b; border-color: #334155; }
+body.dark-mode .nav-item p { color: #64748b; }
+body.dark-mode .nav-item.active p { color: var(--primary); }
+
+/* AI Modal */
+body.dark-mode .modal-sheet { background: #1e293b; }
+body.dark-mode .modal-head { border-color: #334155; background: #1e293b; }
+body.dark-mode .modal-head h3 { color: #f1f5f9; }
+body.dark-mode .chat-body { background: #0f172a; }
+body.dark-mode .ai-bubble { background: #334155; border-color: #475569; color: #f1f5f9; }
+body.dark-mode .user-bubble { background: var(--primary); }
+body.dark-mode .chat-input-wrap { background: #1e293b; border-color: #334155; }
+body.dark-mode .chat-input-wrap input { background: #0f172a; color: #f1f5f9; border-color: #334155; }
+body.dark-mode .quick-chips { background: #1e293b; }
+body.dark-mode .chip { background: #334155; border-color: #475569; color: #cbd5e1; }
+
+/* Profile (Zomato style) */
+body.dark-mode .zp-header { background: #1e293b; border-color: #334155; }
+body.dark-mode .zp-title { color: #f1f5f9; }
+body.dark-mode .zp-user-card { background: #1e293b; }
+body.dark-mode .zp-user-info h2 { color: #f1f5f9; }
+body.dark-mode .zp-user-info p { color: #94a3b8; }
+body.dark-mode .zp-quick-row { background: #1e293b; border-color: #334155; }
+body.dark-mode .zp-quick-item { border-color: #334155; }
+body.dark-mode .zp-quick-item p { color: #94a3b8; }
+body.dark-mode .zp-section-label { background: #0f172a; color: #64748b; }
+body.dark-mode .zp-menu-group { background: #1e293b; }
+body.dark-mode .zp-menu-row { border-color: #334155; }
+body.dark-mode .zp-menu-row:active { background: #0f172a; }
+body.dark-mode .zp-row-text p { color: #f1f5f9; }
+body.dark-mode .zp-row-text span { color: #94a3b8; }
+body.dark-mode .zp-login-card { background: #1e293b; }
+body.dark-mode .zp-google-btn { background: #334155; color: #f1f5f9; border-color: #475569; }
+body.dark-mode .app-version { color: #64748b; }
+body.dark-mode .zp-account-info p { color: #64748b !important; }
+
+/* Explore / Map */
+body.dark-mode .page-header-simple { background: #1e293b; border-color: #334155; }
+body.dark-mode .page-header-simple h2 { color: #f1f5f9; }
+body.dark-mode .location-search-box { background: #1e293b; border-color: #334155; }
+body.dark-mode .location-search-box input { color: #f1f5f9; background: transparent; }
+body.dark-mode .loc-confirm-card { background: #1e293b; border-color: #334155; }
+body.dark-mode .card-sub { color: #94a3b8; }
+body.dark-mode #selectedLocationName { color: #f1f5f9; }
+body.dark-mode #selectedLocationAddress { color: #94a3b8; }
+body.dark-mode .explore-tabs { background: #0f172a; }
+body.dark-mode .etab { background: #1e293b; border-color: #334155; color: #94a3b8; }
+body.dark-mode .mandis-panel { background: #1e293b; }
+body.dark-mode .mandis-panel-header { background: #0f172a; }
+body.dark-mode .mandi-card { border-color: #334155; }
+body.dark-mode .mandi-card-info h4 { color: #f1f5f9; }
+body.dark-mode .mandi-card-info p { color: #94a3b8; }
+
+/* No data */
+body.dark-mode .no-data { background: #1e293b; }
+body.dark-mode .no-data p { color: #94a3b8; }
+
+/* ===== MIC BUTTON ===== */
+.mic-icon {
+  cursor: pointer; color: rgba(255,255,255,0.7);
+  transition: all 0.2s; border-radius: 50%;
+  padding: 4px;
+}
+.mic-icon:active { transform: scale(0.9); color: white; }
+
+/* ===== SHOPS PAGE ===== */
+.shops-scroll { overflow-y: auto; height: 100%; padding-bottom: 100px; }
+
+.shop-register-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(135deg, #16a34a, #15803d);
+  padding: 18px 16px; margin: 8px;
+  border-radius: 16px; gap: 12px;
+}
+.srb-text h3 { font-size: 15px; font-weight: 800; color: white; margin-bottom: 4px; }
+.srb-text p { font-size: 12px; color: rgba(255,255,255,0.8); }
+.srb-btn {
+  padding: 10px 16px; background: white; color: #16a34a;
+  border: none; border-radius: 20px; font-size: 13px;
+  font-weight: 800; cursor: pointer; font-family: inherit;
+  white-space: nowrap; flex-shrink: 0;
 }
 
-window.selectSuggestion = function(lat, lng, name, fullAddr) {
-  const box = document.getElementById("searchSuggestions");
-  const input = document.getElementById("locationSearchInput");
-  if (box) box.style.display = "none";
-  if (input) input.value = name;
-  lat = parseFloat(lat); lng = parseFloat(lng);
-  if (mapplsMap) { mapplsMap.setCenter({ lat, lng }); mapplsMap.setZoom(16); }
-  currentLocation = { lat, lng, name, fullAddr: fullAddr || name };
-  const nameEl = document.getElementById("selectedLocationName");
-  const addrEl = document.getElementById("selectedLocationAddress");
-  if (nameEl) nameEl.textContent = name;
-  if (addrEl) addrEl.textContent = fullAddr || "";
-  forceEnableConfirm();
-};
+/* Register Form */
+.shop-form {
+  background: white; margin: 0 8px 8px;
+  border-radius: 16px; padding: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.form-title {
+  font-size: 15px; font-weight: 800; color: var(--text);
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block; font-size: 12px; font-weight: 700;
+  color: var(--text3); margin-bottom: 6px; letter-spacing: 0.3px;
+}
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%; padding: 12px 14px;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  font-size: 14px; font-family: inherit; color: var(--text);
+  background: var(--bg); outline: none; box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  border-color: var(--primary);
+}
+.use-current-loc {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 8px; padding: 8px 12px;
+  background: var(--primary-glow); color: var(--primary);
+  border: 1px solid #bbf7d0; border-radius: 20px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: inherit;
+}
+.use-current-loc .material-icons-round { font-size: 14px; }
 
-// ===== SEARCH — Nominatim (free, no API key needed) =====
-async function searchLocation(query) {
-  const searchInput = document.getElementById("locationSearchInput");
-  if (searchInput) searchInput.style.borderColor = "var(--primary)";
+.submit-shop-btn {
+  width: 100%; padding: 14px; margin-top: 4px;
+  background: var(--primary); color: white; border: none;
+  border-radius: 12px; font-size: 15px; font-weight: 800;
+  cursor: pointer; font-family: inherit; display: flex;
+  align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 4px 12px rgba(22,163,74,0.3);
+}
+.submit-shop-btn:active { transform: scale(0.98); }
 
-  try {
-    // Use Nominatim — free, no CORS issues, works everywhere
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query + ', India')}&limit=1&addressdetails=1`,
-      { headers: { 'Accept-Language': 'hi,en' } }
-    );
-    const data = await res.json();
+/* Shops list */
+.shops-list { padding: 0 8px 8px; }
+.no-shops {
+  text-align: center; padding: 40px 20px;
+  color: var(--text2); background: white;
+  border-radius: 16px; border: 1px solid var(--border);
+}
+.no-shops p { font-size: 14px; font-weight: 600; margin-top: 10px; }
 
-    if (data && data.length > 0) {
-      const loc = data[0];
-      const lat = parseFloat(loc.lat);
-      const lng = parseFloat(loc.lon);
-      if (mapplsMap && lat && lng) {
-        mapplsMap.setCenter({ lat, lng });
-        mapplsMap.setZoom(16);
-      }
-      if (searchInput) searchInput.style.borderColor = "";
-    } else {
-      // Try without India suffix
-      const res2 = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`,
-        { headers: { 'Accept-Language': 'hi,en' } }
-      );
-      const data2 = await res2.json();
-      if (data2?.length > 0) {
-        mapplsMap?.setCenter({ lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) });
-        mapplsMap?.setZoom(16);
-      } else {
-        alert(`"${query}" nahi mila. Aur specific naam try karein.`);
-      }
-      if (searchInput) searchInput.style.borderColor = "";
-    }
-  } catch (e) {
-    console.error("Search error:", e);
-    if (searchInput) searchInput.style.borderColor = "";
-    alert("Search fail ho gayi. Internet check karein.");
-  }
+.shop-card {
+  background: white; border-radius: 14px; padding: 14px 16px;
+  margin-bottom: 10px; border: 1px solid var(--border);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+}
+.shop-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.shop-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: #dcfce7; display: flex; align-items: center;
+  justify-content: center; font-size: 22px; flex-shrink: 0;
+}
+.shop-card-info h4 { font-size: 15px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
+.shop-card-info p { font-size: 12px; color: var(--text3); }
+.shop-card-footer {
+  display: flex; gap: 8px; margin-top: 10px;
+}
+.shop-call-btn {
+  flex: 1; padding: 9px; background: #dcfce7; color: #16a34a;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; display: flex;
+  align-items: center; justify-content: center; gap: 4px;
 }
 
-// Keep old name for compatibility
-async function searchWithMappls(query) { return searchLocation(query); }
+/* Dark mode shops */
+body.dark-mode .shop-form { background: #1e293b; border-color: #334155; }
+body.dark-mode .shop-card { background: #1e293b; border-color: #334155; }
+body.dark-mode .form-group input,
+body.dark-mode .form-group select,
+body.dark-mode .form-group textarea { background: #0f172a; border-color: #334155; color: #f1f5f9; }
+body.dark-mode .no-shops { background: #1e293b; }
+body.dark-mode .shop-register-banner { background: linear-gradient(135deg, #166534, #14532d); }
 
-function showSelectedLocation(latlng) {
-  if (mapplsMap) { mapplsMap.setCenter({lat:latlng.lat, lng:latlng.lng}); mapplsMap.setZoom(17); }
+/* ===== FAVOURITE BUTTON ON CARDS ===== */
+.fav-toggle-btn {
+  width: 38px; height: 38px;
+  background: #f8fafc; border: 1.5px solid #e2e8f0;
+  border-radius: 8px; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.2s;
 }
-
-function getCurrentLocation() {
-  if (!navigator.geolocation) { alert("Geolocation supported nahi hai"); return; }
-  const btn = document.getElementById("currentLocationBtn");
-  if (btn) btn.innerHTML = '<span class="material-icons-round">location_searching</span><span>Dhundh raha hai...</span>';
-
-  navigator.geolocation.getCurrentPosition(pos => {
-    const { latitude: lat, longitude: lng } = pos.coords;
-    if (mapplsMap) { mapplsMap.setCenter({lat,lng}); mapplsMap.setZoom(17); }
-    if (btn) btn.innerHTML = '<span class="material-icons-round">my_location</span><span>Current Location</span>';
-  }, () => {
-    if (btn) btn.innerHTML = '<span class="material-icons-round">my_location</span><span>Current Location</span>';
-    alert("Location nahi mil paya. Permission check karein.");
-  }, { enableHighAccuracy: true, timeout: 15000 });
+.fav-toggle-btn:active { transform: scale(0.9); }
+.fav-toggle-btn.fav-active {
+  background: #fee2e2; border-color: #fecaca;
 }
-
-function confirmLocation(name) {
-  const nameEl = document.getElementById("selectedLocationName");
-  const addrEl = document.getElementById("selectedLocationAddress");
-  if (nameEl) nameEl.textContent = name;
-  if (addrEl) addrEl.textContent = "Confirm karein is location ko";
-}
-
-function confirmAndProceed() {
-  // ❌ Don't save if truly no location
-  if (!currentLocation?.lat || !currentLocation?.lng) {
-    showToast("⚠️ Pehle map pe location select karein!");
-    return;
-  }
-
-  const place = currentLocation.name || "";
-  const fullAddr = currentLocation?.fullAddr || "";
-
-  // ❌ Don't save coordinate strings as location name
-  if (isCoordinateString(place)) {
-    // Try to get name first, then confirm
-    const nameEl = document.getElementById("selectedLocationName");
-    const displayedName = nameEl?.textContent || "";
-    if (isCoordinateString(displayedName) || displayedName === "📍 Dhundh raha hai...") {
-      showToast("⏳ Location naam aa raha hai... dobara try karein");
-      return;
-    }
-    currentLocation.name = displayedName;
-    currentLocation.fullAddr = document.getElementById("selectedLocationAddress")?.textContent || "";
-  }
-
-  const finalPlace = currentLocation.name;
-
-  // If name not ready yet, wait for geocode then auto-confirm
-  if (!finalPlace || isCoordinateString(finalPlace)) {
-    const btn = document.getElementById("confirmBtn");
-    if (btn) {
-      btn.innerHTML = "⏳ Naam dhundh raha hai...";
-      btn.disabled = true;
-    }
-    showToast("⏳ Location naam aa raha hai...");
-    // Wait up to 5 seconds for reverseGeocode to complete
-    let attempts = 0;
-    const waitForName = setInterval(() => {
-      attempts++;
-      const name = currentLocation?.name || "";
-      if (name && !isCoordinateString(name)) {
-        clearInterval(waitForName);
-        if (btn) { btn.innerHTML = "📍 Confirm Location"; btn.disabled = false; }
-        confirmAndProceed(); // Auto-retry
-      } else if (attempts >= 10) {
-        clearInterval(waitForName);
-        if (btn) { btn.innerHTML = "📍 Confirm Location"; btn.disabled = false; }
-        showToast("⚠️ Location naam nahi mila. Search se try karein.");
-      }
-    }, 500);
-    return;
-  }
-  const finalAddr = currentLocation.fullAddr || "";
-
-  // 🔐 Login check — bina login ke bhi allow karo (localStorage mein save)
-  const isLoggedIn = window.zenviAuth?.auth?.currentUser;
-  if (!isLoggedIn) {
-    // Still save locally but show login nudge
-    if (!isCoordinateString(finalPlace)) showToast(`📍 ${finalPlace} saved!`); else showToast("📍 Location saved! Login karein cloud sync ke liye 🔐");
-  } else {
-    if (!isCoordinateString(finalPlace)) showToast(`📍 ${finalPlace} saved! ☁️`);
-    // Save to Firebase cloud
-    if (window.saveLocationToCloud) window.saveLocationToCloud(currentLocation);
-  }
-
-  // ✅ Always save to localStorage
-  localStorage.setItem("zenvi_location", JSON.stringify(currentLocation));
-  localStorage.setItem("zenvi_location_name", finalPlace);
-  localStorage.setItem("zenvi_location_addr", finalAddr);
-
-  // Update home header — never show coordinates
-  const homeAddr = document.getElementById("homeAddress");
-  if (homeAddr && finalPlace && !isCoordinateString(finalPlace)) {
-    homeAddr.innerText = finalPlace + (finalAddr ? `, ${finalAddr.split(",")[0]}` : "");
-  }
-
-  showPage("home");
-}
-
-// ===== TOAST NOTIFICATION =====
-function showToast(msg, duration = 3000) {
-  let toast = document.getElementById("zenviToast");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "zenviToast";
-    toast.style.cssText = `
-      position:fixed; bottom:100px; left:50%; transform:translateX(-50%);
-      background:#1e293b; color:white; padding:12px 20px; border-radius:25px;
-      font-size:13px; font-weight:600; z-index:9999; white-space:nowrap;
-      box-shadow:0 4px 20px rgba(0,0,0,0.3); transition:opacity 0.3s;
-      font-family:inherit; pointer-events:none;
-    `;
-    document.body.appendChild(toast);
-  }
-  toast.textContent = msg;
-  toast.style.opacity = "1";
-  clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => { toast.style.opacity = "0"; }, duration);
-}
-
-// ===== RESTORE SAVED LOCATION =====
-function restoreSavedLocation() {
-  try {
-    const saved = localStorage.getItem("zenvi_location");
-    const savedName = localStorage.getItem("zenvi_location_name");
-
-    // Validate — don't restore garbage values
-    const invalidNames = ["Map pe location chunein...", "Location selected", "Selected Location", "null", "undefined", ""];
-    // Reject coordinate-format names like "26.8018, 84.5037"
-    const isCoordinate = savedName && /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(savedName.trim());
-    if (!saved || !savedName || invalidNames.includes(savedName) || isCoordinate) {
-      localStorage.removeItem("zenvi_location");
-      localStorage.removeItem("zenvi_location_name");
-      localStorage.removeItem("zenvi_location_addr");
-      return;
-    }
-
-    currentLocation = JSON.parse(saved);
-    const addr = localStorage.getItem("zenvi_location_addr") || "";
-    const homeAddr = document.getElementById("homeAddress");
-    // Never show coordinates in header
-    if (homeAddr && savedName && !savedName.match(/\d+\.\d+/)) {
-      homeAddr.innerText = savedName + (addr ? `, ${addr.split(",")[0]}` : "");
-    }
-
-    const locSection = document.getElementById("locationSection");
-    if (locSection) locSection.classList.add("location-set");
-    console.log("📍 Location restored:", savedName);
-  } catch(e) {
-    // Clear corrupted data
-    localStorage.removeItem("zenvi_location");
-    localStorage.removeItem("zenvi_location_name");
-    console.warn("Location restore failed, cleared:", e);
-  }
-}
-
-// ===== NAVIGATION =====
-let currentPage = "home";
-function showPage(pageName) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  const page = document.getElementById(pageName + "Page");
-  if (page) page.classList.add("active");
-
-  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
-  const navItem = document.querySelector(`.nav-item[data-page="${pageName}"]`);
-  if (navItem) navItem.classList.add("active");
-
-  const header = document.getElementById("mainHeader");
-  if (header) {
-    header.classList.toggle("hidden", pageName === "explore");
-  }
-
-  if (pageName === "explore") {
-    setTimeout(() => { if (!mapplsMap) initMap(); }, 300);
-  }
-  if (pageName === "home" && marketData.length > 0) {
-    renderItems(marketData);
-  }
-  if (pageName === "profile") {
-    setTimeout(onProfileOpen, 100);
-  }
-  if (pageName === "shops") {
-    setTimeout(loadShopsList, 100);
-  }
-  currentPage = pageName;
-  // Save immediately on every page change
-  saveAppState();
-}
-window.showPage = showPage;
-
-// ===== SEARCH =====
-function setupSearch() {
-  const input = document.getElementById("searchInput");
-  if (!input) return;
-  let timer;
-  input.addEventListener("input", e => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      if (currentPage === "home") filterItems(e.target.value.trim());
-    }, 250);
-  });
-
-  // ===== VOICE SEARCH =====
-  const micBtn = document.getElementById("micBtn");
-  if (!micBtn) return;
-
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRecognition) {
-    micBtn.style.opacity = "0.4";
-    micBtn.title = "Voice search not supported";
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = "hi-IN"; // Hindi first
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 1;
-
-  let isListening = false;
-
-  micBtn.addEventListener("click", () => {
-    if (isListening) {
-      recognition.stop();
-      return;
-    }
-    recognition.start();
-  });
-
-  recognition.onstart = () => {
-    isListening = true;
-    micBtn.style.color = "#ef4444";
-    micBtn.style.animation = "pulse 1s infinite";
-    showToast("🎤 Bol rahe hain... sun raha hoon");
-  };
-
-  recognition.onresult = (e) => {
-    const transcript = e.results[0][0].transcript;
-    console.log("🎤 Voice:", transcript);
-
-    // Put in search box
-    if (input) {
-      input.value = transcript;
-      filterItems(transcript);
-    }
-    showToast(`🎤 Suna: "${transcript}"`);
-  };
-
-  recognition.onerror = (e) => {
-    if (e.error !== "no-speech") showToast("❌ Voice nahi suna. Dobara try karein.");
-  };
-
-  recognition.onend = () => {
-    isListening = false;
-    micBtn.style.color = "";
-    micBtn.style.animation = "";
-  };
-}
-
-// ===== SETUP ALL EVENTS =====
-function setupEvents() {
-  // Nav items
-  document.querySelectorAll(".nav-item[data-page]").forEach(item => {
-    item.addEventListener("click", () => showPage(item.dataset.page));
-  });
-
-  // AI modal
-  const modal = document.getElementById("aiModal");
-  const aiTrigger = document.getElementById("aiTrigger");
-  const closeBtn = document.getElementById("closeAiModal");
-  const backdrop = document.getElementById("modalBackdrop");
-
-  aiTrigger?.addEventListener("click", () => {
-    modal.classList.add("open");
-    setTimeout(() => document.getElementById("aiQuery")?.focus(), 300);
-  });
-  closeBtn?.addEventListener("click", () => modal.classList.remove("open"));
-  backdrop?.addEventListener("click", () => modal.classList.remove("open"));
-
-  // Quick chips
-  document.querySelectorAll(".chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-      const q = chip.dataset.q;
-      if (q) {
-        document.getElementById("aiQuery").value = q;
-        sendAIMessage();
-      }
-    });
-  });
-
-  // Send button & enter key
-  document.getElementById("sendQuery")?.addEventListener("click", sendAIMessage);
-  document.getElementById("aiQuery")?.addEventListener("keypress", e => {
-    if (e.key === "Enter") sendAIMessage();
-  });
-
-  // Category chips
-  document.querySelectorAll(".cat-chip").forEach(chip => {
-    chip.addEventListener("click", () => {
-      document.querySelectorAll(".cat-chip").forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      const cat = chip.dataset.category;
-      document.getElementById("searchInput").value = "";
-      if (cat === "All") renderItems(marketData);
-      else renderItems(marketData.filter(i => i.category === cat));
-    });
-  });
-
-  // Location section
-  document.getElementById("locationSection")?.addEventListener("click", () => showPage("explore"));
-  document.getElementById("profileIcon")?.addEventListener("click", () => showPage("profile"));
-  document.getElementById("backBtn")?.addEventListener("click", () => showPage("home"));
-  document.getElementById("confirmBtn")?.addEventListener("click", confirmAndProceed);
-  document.getElementById("currentLocationBtn")?.addEventListener("click", getCurrentLocation);
-  document.getElementById("refreshBtn")?.addEventListener("click", fetchLivePrices);
-  setupProfileSettings();
-}
-
-// ===== PROFILE FEATURES =====
-
-// Favourites — localStorage mein save
-let favourites = JSON.parse(localStorage.getItem('zenvi_favs') || '[]');
-let priceAlerts = JSON.parse(localStorage.getItem('zenvi_alerts') || '[]');
-let searchCount = parseInt(localStorage.getItem('zenvi_searches') || '0');
-
-function toggleFavourite(item) {
-  const idx = favourites.findIndex(f => f.name === item.name);
-  if (idx > -1) {
-    favourites.splice(idx, 1);
-  } else {
-    favourites.push({ name: item.name, emoji: item.emoji, price: item.price, unit: item.unit });
-  }
-  localStorage.setItem('zenvi_favs', JSON.stringify(favourites));
-  renderFavourites();
-  updateProfileStats();
-}
-
-function isFavourite(name) {
-  return favourites.some(f => f.name === name);
-}
-
-function renderFavourites() {
-  const list = document.getElementById("favouritesList");
-  if (!list) return;
-  if (favourites.length === 0) {
-    list.innerHTML = '<p class="empty-state">Koi favourite item nahi hai.<br>Home page pe ⭐ tap karein.</p>';
-    return;
-  }
-  list.innerHTML = favourites.map(f => `
-    <div class="fav-item">
-      <span class="fav-item-emoji">${f.emoji}</span>
-      <div class="fav-item-info">
-        <p>${f.name}</p>
-        <span>₹${f.price}/${f.unit}</span>
-      </div>
-      <button class="fav-remove" onclick="toggleFavourite({name:'${f.name}',emoji:'${f.emoji}',price:'${f.price}',unit:'${f.unit}'})">
-        <span class="material-icons-round">close</span>
-      </button>
-    </div>
-  `).join('');
-}
-
-function renderAlerts() {
-  const list = document.getElementById("alertsList");
-  if (!list) return;
-  if (priceAlerts.length === 0) {
-    list.innerHTML = '<p class="empty-state">Koi alert set nahi hai.</p>';
-    return;
-  }
-  list.innerHTML = priceAlerts.map((a, i) => `
-    <div class="alert-item">
-      <span class="material-icons-round">notifications_active</span>
-      <p>${a.emoji || '🔔'} ${a.name} < ₹${a.targetPrice}/kg</p>
-      <button onclick="removeAlert(${i})" style="background:none;border:none;cursor:pointer;color:#94a3b8;">
-        <span class="material-icons-round" style="font-size:16px;">close</span>
-      </button>
-    </div>
-  `).join('');
-}
-
-function removeAlert(idx) {
-  priceAlerts.splice(idx, 1);
-  localStorage.setItem('zenvi_alerts', JSON.stringify(priceAlerts));
-  renderAlerts();
-  updateProfileStats();
-}
-
-function addPriceAlert() {
-  // Create proper modal instead of ugly prompt
-  let modal = document.getElementById("alertModal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "alertModal";
-    document.body.appendChild(modal);
-  }
-  
-  const topItems = marketData.slice(0, 20);
-  
-  modal.style.cssText = "position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;";
-  modal.innerHTML = `
-    <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:24px 20px 40px;">
-      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 20px;"></div>
-      <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;">🔔 Price Alert Set Karein</h3>
-      <p style="font-size:13px;color:#64748b;margin-bottom:16px;">Jab price neeche aaye tab notify karo</p>
-      
-      <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">ITEM CHUNEIN</label>
-        <select id="alertItemSelect" style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;outline:none;">
-          <option value="">-- Item select karein --</option>
-          ${topItems.map(i => `<option value="${i.name}">${i.emoji} ${i.name} (abhi ₹${i.price}/kg)</option>`).join('')}
-        </select>
-      </div>
-      
-      <div style="margin-bottom:20px;">
-        <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">ALERT PRICE (₹/kg)</label>
-        <div style="display:flex;align-items:center;gap:8px;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;">
-          <span style="font-size:18px;font-weight:800;color:#16a34a;">₹</span>
-          <input id="alertPriceInput" type="number" min="1" max="10000" 
-            placeholder="Kitne price pe alert chahiye?"
-            style="flex:1;border:none;outline:none;font-size:16px;font-weight:700;font-family:inherit;">
-          <span style="color:#64748b;font-size:13px;">/kg</span>
-        </div>
-      </div>
-      
-      <div style="display:flex;gap:10px;">
-        <button onclick="document.getElementById('alertModal').style.display='none';"
-          style="flex:1;padding:14px;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-          Cancel
-        </button>
-        <button onclick="saveAlertFromModal()"
-          style="flex:2;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-          🔔 Set Alert
-        </button>
-      </div>
-    </div>
-  `;
-  
-  modal.style.display = "flex";
-  modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
-}
-
-window.saveAlertFromModal = function() {
-  const itemName = document.getElementById("alertItemSelect")?.value;
-  const price = document.getElementById("alertPriceInput")?.value;
-  
-  if (!itemName) { showToast("⚠️ Item select karein!"); return; }
-  if (!price || isNaN(price) || price <= 0) { showToast("⚠️ Valid price daalen!"); return; }
-  
-  const item = marketData.find(i => i.name === itemName);
-  if (!item) { showToast("⚠️ Item nahi mila"); return; }
-  
-  priceAlerts.push({ name: item.name, emoji: item.emoji, targetPrice: parseFloat(price), currentPrice: item.price });
-  localStorage.setItem('zenvi_alerts', JSON.stringify(priceAlerts));
-  
-  document.getElementById("alertModal").style.display = "none";
-  renderAlerts?.();
-  updateProfileStats?.();
-  showToast(`✅ Alert set! ${item.emoji} ${item.name} ₹${price} se kam hone pe notify karega`);
-};
-
-function updateProfileStats() {
-  const upCount = marketData.filter(i => i.trend === 'up').length;
-  const downCount = marketData.filter(i => i.trend === 'down').length;
-
-  // Update new Zomato-style elements
-  const favCount = document.getElementById("favCount");
-  const alertCount = document.getElementById("alertCount");
-  const mwItems = document.getElementById("mwItems");
-  const mwChanges = document.getElementById("mwChanges");
-
-  if (favCount) favCount.textContent = `${favourites.length} items saved`;
-  if (alertCount) alertCount.textContent = `${priceAlerts.length} alerts set`;
-  if (mwItems) mwItems.textContent = `${marketData.length} items tracked`;
-  if (mwChanges) mwChanges.textContent = `📈${upCount} 📉${downCount}`;
-}
-
-function updateSavedLocation() {
-  const locName = document.getElementById("savedLocName");
-  const locAddr = document.getElementById("savedLocAddr");
-  const heroTag = document.getElementById("profileLocationTag");
-  const heroTagText = document.getElementById("profileLocationText");
-
-  const savedLoc = currentLocation?.name;
-  if (savedLoc && savedLoc !== "Selected Location") {
-    if (locName) locName.textContent = savedLoc;
-    if (locAddr) locAddr.textContent = currentLocation.fullAddr || "Location saved";
-    if (heroTag) heroTag.style.display = "inline-flex";
-    if (heroTagText) heroTagText.textContent = savedLoc;
-  }
-}
-
-// Dark mode toggle
-
-function showFavouritesList() {
-  if (favourites.length === 0) {
-    showToast("⭐ Koi favourite nahi — Home pe item pe tap karo");
-    return;
-  }
-  // Create popup
-  let modal = document.getElementById("favModal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "favModal";
-    modal.style.cssText = "position:fixed;inset:0;z-index:3000;display:flex;align-items:flex-end;background:rgba(0,0,0,0.5);";
-    document.body.appendChild(modal);
-  }
-  modal.innerHTML = `
-    <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:24px 20px 40px;max-height:70vh;overflow-y:auto;">
-      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 16px;"></div>
-      <h3 style="font-size:17px;font-weight:800;margin-bottom:16px;">⭐ Favourite Items (${favourites.length})</h3>
-      ${favourites.map(f => `
-        <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f1f5f9;">
-          <span style="font-size:24px;">${f.emoji}</span>
-          <div style="flex:1;"><p style="font-weight:700;margin:0;">${f.name}</p><span style="font-size:12px;color:#16a34a;">₹${f.price}/kg</span></div>
-          <button onclick="toggleFavourite({name:'${f.name}',emoji:'${f.emoji}',price:'${f.price}',unit:'${f.unit}'})" 
-            style="background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;">Remove</button>
-        </div>`).join('')}
-      <button onclick="document.getElementById('favModal').style.display='none';"
-        style="width:100%;margin-top:16px;padding:14px;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-        Close
-      </button>
-    </div>`;
-  modal.style.display = "flex";
-  modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
-}
-
-function setupProfileSettings() {
-  // ===== 3-dot Dropdown =====
-  document.getElementById("profileMenuBtn")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const dd = document.getElementById("profileDropdown");
-    if (dd) dd.style.display = dd.style.display === "none" ? "block" : "none";
-  });
-  document.addEventListener("click", () => {
-    const dd = document.getElementById("profileDropdown");
-    if (dd) dd.style.display = "none";
-  });
-
-  // ===== Dark Mode =====
-  document.getElementById("darkModeCheck")?.addEventListener("change", e => {
-    document.body.classList.toggle("dark-mode", e.target.checked);
-    localStorage.setItem("zenvi_dark", e.target.checked ? "1" : "0");
-    showToast(e.target.checked ? "🌙 Dark mode on" : "☀️ Light mode on");
-  });
-  // Dark mode is restored at startup (top of file)
-
-  // ===== Notifications Toggle =====
-  document.getElementById("notifCheck")?.addEventListener("change", e => {
-    localStorage.setItem("zenvi_notif", e.target.checked ? "1" : "0");
-    showToast(e.target.checked ? "🔔 Notifications on" : "🔕 Notifications off");
-  });
-
-  // ===== Clear Chat =====
-  document.getElementById("clearChatBtn")?.addEventListener("click", () => {
-    document.getElementById("profileDropdown").style.display = "none";
-    if (confirm("Chat history clear karein?")) {
-      chatHistory = [];
-      const chatBody = document.getElementById("chatBody");
-      if (chatBody) chatBody.innerHTML = `<div class="ai-msg-wrap"><div class="ai-bubble">🙏 <strong>Namaste!</strong> Chat history clear ho gayi.</div></div>`;
-      showToast("✅ Chat history cleared!");
-    }
-  });
-
-  // ===== Saved Address (quick row) =====
-  document.getElementById("favQuickBtn")?.addEventListener("click", () => {
-    showToast("⭐ " + (favourites.length > 0 ? `${favourites.length} favourite items` : "Koi favourite nahi hai"));
-  });
-  document.getElementById("alertQuickBtn")?.addEventListener("click", () => {
-    showToast("🔔 " + (priceAlerts.length > 0 ? `${priceAlerts.length} alerts set hain` : "Koi alert nahi hai"));
-  });
-
-  // ===== Edit Profile =====
-  document.getElementById("editProfileBtn")?.addEventListener("click", () => {
-    const user = window.zenviAuth?.auth?.currentUser;
-    if (!user) { showToast("⚠️ Pehle login karein"); return; }
-    openEditProfileModal(user);
-  });
-
-  // ===== Quick Row =====
-  document.getElementById("favQuickBtn")?.addEventListener("click", () => {
-    showFavouritesList();
-  });
-  document.getElementById("alertQuickBtn")?.addEventListener("click", () => {
-    addPriceAlert();
-  });
-
-  // ===== Favourites row =====
-  document.getElementById("showFavourites")?.addEventListener("click", showFavouritesList);
-
-  // ===== Alerts row =====
-  document.getElementById("showAlerts")?.addEventListener("click", () => addPriceAlert());
-
-  // ===== About Zenvi =====
-  document.querySelectorAll(".zp-menu-row").forEach(row => {
-    const text = row.querySelector(".zp-row-text p")?.textContent;
-    if (text === "About Zenvi") {
-      row.addEventListener("click", () => {
-        alert("🌿 Zenvi — Smart Mandi App\n\nIndia ke kisan aur grahak ke liye live mandi prices.\n\nVersion: 1.0\nDeveloper: Aditya Soni\nMade with ❤️ in India 🇮🇳");
-      });
-    }
-    if (text === "Help & Support") {
-      row.addEventListener("click", () => {
-        window.open("mailto:support@zenvi.app?subject=Zenvi Help", "_blank");
-        showToast("📧 Email khul raha hai...");
-      });
-    }
-    if (text === "Privacy Policy") {
-      row.addEventListener("click", () => {
-        showToast("🔒 Aapka data secure hai. Koi third party ko share nahi kiya jaata.");
-      });
-    }
-    if (text === "List Your Crop") {
-      row.addEventListener("click", () => showToast("🌾 Coming Soon! Jald aayega."));
-    }
-    if (text === "Register Your Shop") {
-      row.addEventListener("click", () => showPage("shops"));
-    }
-  });
-}
-
-// Call when profile page opens
-function onProfileOpen() {
-  renderFavourites();
-  renderAlerts();
-  updateProfileStats();
-  updateSavedLocation();
-}
-
-// ===== SPLASH SCREEN =====
-let splashHidden = false;
-function hideSplash() {
-  if (splashHidden) return;
-  splashHidden = true;
-
-  const splash = document.getElementById("splashScreen");
-  if (!splash) return;
-
-  const isRefresh = sessionStorage.getItem("zenvi_launched");
-
-  if (isRefresh) {
-    // Refresh — splash turant remove
-    splash.remove();
-  } else {
-    // First launch — 2 second animation
-    sessionStorage.setItem("zenvi_launched", "1");
-    setTimeout(() => {
-      splash.classList.add("hide");
-      setTimeout(() => splash.remove(), 500);
-    }, 2000);
-  }
-}
-
-// ===== INIT =====
-// ===== SAVE/RESTORE APP STATE (refresh fix) =====
-function saveAppState() {
-  try {
-    sessionStorage.setItem("zenvi_state", JSON.stringify({
-      page: currentPage || "home",
-      ts: Date.now()
-    }));
-  } catch(e) {}
-}
-
-function restoreAppState() {
-  try {
-    const raw = sessionStorage.getItem("zenvi_state");
-    if (!raw) return "home";
-    const state = JSON.parse(raw);
-    // Restore if within 5 minutes
-    if (Date.now() - state.ts < 300000 && state.page) {
-      console.log("📱 Restoring page:", state.page);
-      return state.page;
-    }
-  } catch(e) {}
-  return "home";
-}
-
-// Also save on visibility change (most reliable on mobile)
-window.addEventListener("beforeunload", saveAppState);
-window.addEventListener("pagehide", saveAppState);
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") saveAppState();
-});
-
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("🚀 Zenvi starting...");
-
-  // Clear ALL bad/coordinate location data on startup
-  const savedName = localStorage.getItem("zenvi_location_name") || "";
-  const badNames = ["Bettiah, Bettiah", "Bettiah,Bettiah", "Bettiah"];
-  const isBadLocation = isCoordinateString(savedName) || badNames.includes(savedName.trim());
-  if (isBadLocation) {
-    localStorage.removeItem("zenvi_location");
-    localStorage.removeItem("zenvi_location_name");
-    localStorage.removeItem("zenvi_location_addr");
-    // Also clear cached prices with coordinate names
-    localStorage.removeItem("zenvi_prices");
-    localStorage.removeItem("zenvi_prices_time");
-    console.log("🧹 Cleared bad location:", savedName || "(empty)");
-  }
-  
-  // Force clear any cached coordinate location
-  try {
-    const cachedLoc = JSON.parse(localStorage.getItem("zenvi_location") || "{}");
-    if (cachedLoc.name && isCoordinateString(cachedLoc.name)) {
-      localStorage.removeItem("zenvi_location");
-      localStorage.removeItem("zenvi_location_name");
-    }
-  } catch(e) {}
-
-  const isRefresh = sessionStorage.getItem("zenvi_launched");
-  const lastPage = restoreAppState();
-
-  if (isRefresh) {
-    // Refresh — splash instant remove, last page restore
-    hideSplash();
-    restoreSavedLocation();
-    showPage(lastPage);
-    fetchLivePrices();
-  } else {
-    // First launch — splash dikhao, home page
-    hideSplash();
-    restoreSavedLocation();
-    showPage("home");
-    fetchLivePrices();
-  }
-
-  setupSearch();
-  setupEvents();
-  console.log("✅ Zenvi ready! Page:", lastPage);
-});
-
-// ===== AUTO REFRESH (5 min) =====
-setInterval(() => {
-  if (document.visibilityState === "visible") fetchLivePrices();
-}, 300000);
-
-// ===== GLOBAL EXPORTS =====
-window.sendAIMessage = sendAIMessage;
-window.filterItems = filterItems;
-window.getCurrentLocation = getCurrentLocation;
-window.confirmAndProceed = confirmAndProceed;
-window.confirmLocation = confirmLocation;
-
-// ===== SHOP REGISTRATION =====
-window.toggleRegisterForm = function() {
-  const form = document.getElementById("shopRegisterForm");
-  if (!form) return;
-  const isOpen = form.style.display !== "none";
-  form.style.display = isOpen ? "none" : "block";
-  if (!isOpen) form.scrollIntoView({ behavior: "smooth", block: "start" });
-};
-
-window.useCurrentLocationForShop = function() {
-  const input = document.getElementById("shopAddress");
-  if (!input) return;
-  const loc = window.currentLocation?.name || "";
-  if (loc) {
-    input.value = loc + (window.currentLocation?.fullAddr ? `, ${window.currentLocation.fullAddr.split(",")[0]}` : "");
-    showToast("📍 Location fill ho gayi!");
-  } else {
-    showToast("⚠️ Pehle Explore tab se location set karein");
-  }
-};
-
-window.submitShopRegistration = async function() {
-  const name    = document.getElementById("shopName")?.value.trim();
-  const owner   = document.getElementById("ownerName")?.value.trim();
-  const phone   = document.getElementById("shopPhone")?.value.trim();
-  const type    = document.getElementById("shopType")?.value;
-  const address = document.getElementById("shopAddress")?.value.trim();
-  const desc    = document.getElementById("shopDesc")?.value.trim();
-
-  // Validation
-  if (!name || !owner || !phone || !type || !address) {
-    showToast("⚠️ Saari * fields fill karein!");
-    return;
-  }
-  if (phone.replace(/\D/g,'').length < 10) {
-    showToast("⚠️ Valid phone number daalen");
-    return;
-  }
-
-  const btn = document.querySelector(".submit-shop-btn");
-  if (btn) { btn.textContent = "Submitting..."; btn.disabled = true; }
-
-  const shopData = {
-    name, owner, phone, type, address, desc,
-    lat: window.currentLocation?.lat || null,
-    lng: window.currentLocation?.lng || null,
-    registeredAt: new Date().toISOString(),
-    submittedBy: window.zenviAuth?.auth?.currentUser?.uid || "anonymous",
-    status: "pending"
-  };
-
-  // Save to localStorage FIRST (always works)
-  const shops = JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
-  shops.push(shopData);
-  localStorage.setItem("zenvi_shops", JSON.stringify(shops));
-
-  // Save to Firebase (permanent cloud storage)
-  let cloudSaved = false;
-  if (window.saveShopToFirebase) {
-    cloudSaved = await window.saveShopToFirebase(shopData);
-  }
-
-  if (btn) { btn.innerHTML = '<span class="material-icons-round">store</span> Register My Shop'; btn.disabled = false; }
-
-  if (cloudSaved) {
-    showToast(`✅ "${name}" permanently save ho gayi! ☁️`);
-  } else {
-    showToast(`✅ "${name}" locally saved! Login karein cloud save ke liye.`);
-  }
-
-  // Clear form
-  ["shopName","ownerName","shopPhone","shopAddress","shopDesc"].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = "";
-  });
-  document.getElementById("shopType").value = "";
-  document.getElementById("shopRegisterForm").style.display = "none";
-
-  // Refresh shops list
-  loadShopsList();
-};
-
-function loadShopsList() {
-  const list = document.getElementById("shopsList");
-  if (!list) return;
-
-  // Load from Firebase first if available
-  if (window.loadShopsFromFirebase) {
-    window.loadShopsFromFirebase().then(firebaseShops => {
-      if (firebaseShops.length > 0) {
-        renderShopsList(firebaseShops);
-        return;
-      }
-      // Fallback to localStorage
-      const shops = JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
-      renderShopsList(shops);
-    });
-    return;
-  }
-
-  const shops = JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
-  renderShopsList(shops);
-}
-
-function loadShopsList_inner() {} // placeholder
-
-function renderShopsList(shops) {
-  const list = document.getElementById("shopsList");
-  if (!list) return;
-
-  const typeEmoji = {
-    sabji:"🥬", phal:"🍎", kirana:"🛒", anaaj:"🌾",
-    dairy:"🥛", mandi:"🏪", other:"✨"
-  };
-  const typeLabel = {
-    sabji:"Sabji Bhandar", phal:"Phal Bhandar", kirana:"Kirana Store",
-    anaaj:"Anaaj/Dal", dairy:"Dairy/Milk", mandi:"Mandi/Wholesale", other:"Other"
-  };
-
-  if (shops.length === 0) {
-    list.innerHTML = `<div class="no-shops">
-      <span style="font-size:48px;">🏪</span>
-      <p>Abhi koi shop registered nahi hai.</p>
-      <p style="font-size:12px;color:#94a3b8;">Pehle shop register karein!</p>
-    </div>`;
-    return;
-  }
-
-  list.innerHTML = shops.map(s => `
-    <div class="shop-card">
-      <div class="shop-card-header">
-        <div class="shop-icon">${typeEmoji[s.type] || "🏪"}</div>
-        <div class="shop-card-info">
-          <h4>${s.name}</h4>
-          <p>${typeLabel[s.type] || "Shop"} • ${s.address}</p>
-        </div>
-      </div>
-      <div style="font-size:12px;color:var(--text3);margin-bottom:8px;">👤 ${s.owner}</div>
-      <div class="shop-card-footer">
-        <button class="shop-call-btn" onclick="window.open('tel:${s.phone}')">
-          <span class="material-icons-round" style="font-size:16px;">call</span> Call
-        </button>
-        <button class="shop-call-btn" style="background:#dbeafe;color:#3b82f6;" onclick="window.open('https://wa.me/${s.phone.replace(/\D/g,'')}')">
-          💬 WhatsApp
-        </button>
-      </div>
-    </div>`).join('');
-}
-
-// loadShopsList on shops page open is handled in showPage directly
-
-// ===== EDIT PROFILE MODAL (Swiggy style) =====
-function openEditProfileModal(user) {
-  let modal = document.getElementById("editProfileModal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "editProfileModal";
-    document.body.appendChild(modal);
-  }
-
-  modal.style.cssText = "position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;";
-
-  modal.innerHTML = `
-    <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:0 0 40px;max-height:92vh;overflow-y:auto;">
-      
-      <!-- Header -->
-      <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid #f1f5f9;position:sticky;top:0;background:white;z-index:1;">
-        <button onclick="document.getElementById('editProfileModal').style.display='none';" 
-          style="background:none;border:none;cursor:pointer;padding:4px;">
-          <span class="material-icons-round" style="font-size:22px;">arrow_back</span>
-        </button>
-        <h3 style="font-size:17px;font-weight:800;flex:1;">Your Profile</h3>
-        <button id="saveProfileBtn" onclick="saveProfileChanges()"
-          style="background:#16a34a;color:white;border:none;border-radius:20px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
-          Save
-        </button>
-      </div>
-
-      <!-- Avatar -->
-      <div style="text-align:center;padding:24px 20px 16px;">
-        <div style="width:80px;height:80px;border-radius:50%;background:#e0e7ff;margin:0 auto 8px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
-          ${user.photoURL 
-            ? `<img src="${user.photoURL}" style="width:100%;height:100%;object-fit:cover;">` 
-            : `<span style="font-size:36px;font-weight:800;color:#6366f1;">${(user.displayName||"U")[0].toUpperCase()}</span>`}
-        </div>
-      </div>
-
-      <!-- Fields -->
-      <div style="padding:0 20px;">
-        
-        <!-- Name -->
-        <div style="margin-bottom:16px;">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px;">Name</label>
-          <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;display:flex;align-items:center;">
-            <input id="editName" value="${user.displayName || ''}" 
-              style="flex:1;border:none;outline:none;font-size:15px;font-weight:600;font-family:inherit;color:#1e293b;"
-              placeholder="Aapka naam">
-            <button onclick="document.getElementById('editName').value=''"
-              style="background:#f1f5f9;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-              <span class="material-icons-round" style="font-size:14px;color:#94a3b8;">close</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Phone -->
-        <div style="margin-bottom:16px;">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px;">Mobile</label>
-          <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;display:flex;align-items:center;">
-            <input id="editPhone" type="tel" 
-              value="${localStorage.getItem('zenvi_phone') || ''}"
-              style="flex:1;border:none;outline:none;font-size:15px;font-weight:600;font-family:inherit;color:#1e293b;"
-              placeholder="+91 XXXXXXXXXX" maxlength="13">
-            <span style="font-size:12px;font-weight:700;color:#16a34a;cursor:pointer;" 
-              onclick="showToast('📱 Phone number update hoga')">CHANGE</span>
-          </div>
-        </div>
-
-        <!-- Email -->
-        <div style="margin-bottom:16px;">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px;">Email</label>
-          <div style="border:1.5px solid #f1f5f9;border-radius:12px;padding:14px;display:flex;align-items:center;background:#f8fafc;">
-            <input value="${user.email || ''}" readonly
-              style="flex:1;border:none;outline:none;font-size:15px;font-weight:600;font-family:inherit;color:#94a3b8;background:transparent;">
-            <span style="font-size:12px;font-weight:700;color:#16a34a;cursor:pointer;"
-              onclick="showToast('📧 Email Google account se linked hai')">CHANGE</span>
-          </div>
-        </div>
-
-        <!-- Gender -->
-        <div style="margin-bottom:16px;">
-          <label style="font-size:12px;color:#94a3b8;font-weight:600;display:block;margin-bottom:4px;">Gender</label>
-          <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;">
-            <select id="editGender" style="width:100%;border:none;outline:none;font-size:15px;font-weight:600;font-family:inherit;color:#1e293b;background:transparent;">
-              <option value="">Select Gender</option>
-              <option value="male" ${localStorage.getItem('zenvi_gender')==='male'?'selected':''}>Male</option>
-              <option value="female" ${localStorage.getItem('zenvi_gender')==='female'?'selected':''}>Female</option>
-              <option value="other" ${localStorage.getItem('zenvi_gender')==='other'?'selected':''}>Other</option>
-            </select>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- Update Button -->
-      <div style="padding:0 20px;">
-        <button onclick="saveProfileChanges()"
-          style="width:100%;padding:16px;background:#e2e8f0;color:#94a3b8;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;"
-          id="updateProfileBtn">
-          Update profile
-        </button>
-      </div>
-
-    </div>
-  `;
-
-  modal.style.display = "flex";
-  modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
-}
-
-window.saveProfileChanges = function() {
-  const name   = document.getElementById("editName")?.value.trim();
-  const phone  = document.getElementById("editPhone")?.value.trim();
-  const gender = document.getElementById("editGender")?.value;
-
-  if (phone) localStorage.setItem("zenvi_phone", phone);
-  if (gender) localStorage.setItem("zenvi_gender", gender);
-
-  // Update displayed name
-  if (name) {
-    const nameEl = document.getElementById("profileDisplayName");
-    if (nameEl) nameEl.textContent = name;
-  }
-
-  document.getElementById("editProfileModal").style.display = "none";
-  showToast("✅ Profile updated!");
-};
