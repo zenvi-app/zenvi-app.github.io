@@ -166,11 +166,82 @@
 
 <!-- ========== SHOPS PAGE ========== -->
 <div id="shopsPage" class="page">
-  <div class="coming-soon-page">
-    <div class="cs-icon">🏪</div>
-    <h2>Nearby Shops</h2>
-    <p>Yeh feature jald aane wala hai!</p>
-    <a href="#" id="registerShopLink" class="register-btn">+ Register Your Shop</a>
+  <div class="shops-scroll">
+
+    <!-- Header -->
+    <div class="zp-header">
+      <div class="zp-back" onclick="showPage('home')">
+        <span class="material-icons-round">arrow_back</span>
+      </div>
+      <span class="zp-title">Shops & Markets</span>
+    </div>
+
+    <!-- Register Banner -->
+    <div class="shop-register-banner">
+      <div class="srb-text">
+        <h3>🏪 Apni Dukaan Register Karein</h3>
+        <p>Lakhs of customers tak pahuncho — free mein!</p>
+      </div>
+      <button class="srb-btn" onclick="toggleRegisterForm()">Register Now</button>
+    </div>
+
+    <!-- Register Form -->
+    <div id="shopRegisterForm" class="shop-form" style="display:none;">
+      <div class="form-title">📝 Shop Details</div>
+
+      <div class="form-group">
+        <label>Dukaan ka Naam *</label>
+        <input type="text" id="shopName" placeholder="e.g. Ramesh Sabji Bhandar">
+      </div>
+      <div class="form-group">
+        <label>Owner ka Naam *</label>
+        <input type="text" id="ownerName" placeholder="Aapka naam">
+      </div>
+      <div class="form-group">
+        <label>Phone Number *</label>
+        <input type="tel" id="shopPhone" placeholder="+91 XXXXXXXXXX" maxlength="13">
+      </div>
+      <div class="form-group">
+        <label>Shop Type *</label>
+        <select id="shopType">
+          <option value="">-- Select karein --</option>
+          <option value="sabji">🥬 Sabji Bhandar</option>
+          <option value="phal">🍎 Phal Bhandar</option>
+          <option value="kirana">🛒 Kirana Store</option>
+          <option value="anaaj">🌾 Anaaj/Dal</option>
+          <option value="dairy">🥛 Dairy/Milk</option>
+          <option value="mandi">🏪 Mandi/Wholesale</option>
+          <option value="other">✨ Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Location / Address *</label>
+        <input type="text" id="shopAddress" placeholder="Mohalla, City">
+        <button class="use-current-loc" onclick="useCurrentLocationForShop()">
+          <span class="material-icons-round">my_location</span> Current Location Use Karein
+        </button>
+      </div>
+      <div class="form-group">
+        <label>Description (Optional)</label>
+        <textarea id="shopDesc" placeholder="Aapki dukaan ke baare mein kuch batayein..." rows="3"></textarea>
+      </div>
+
+      <button class="submit-shop-btn" onclick="submitShopRegistration()">
+        <span class="material-icons-round">store</span>
+        Register My Shop
+      </button>
+    </div>
+
+    <!-- Registered Shops List -->
+    <div class="zp-section-label" style="margin-top:8px;">NEARBY SHOPS</div>
+    <div id="shopsList" class="shops-list">
+      <div class="no-shops">
+        <span style="font-size:48px;">🏪</span>
+        <p>Abhi koi shop registered nahi hai.</p>
+        <p style="font-size:12px;color:#94a3b8;">Pehle shop register karein!</p>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -302,7 +373,7 @@
       <div class="zp-menu-row">
         <span class="material-icons-round zp-row-icon orange">store</span>
         <div class="zp-row-text"><p>Register Your Shop</p><span>Apni dukaan add karein</span></div>
-        <span class="zp-coming-chip">Soon</span>
+        <span class="material-icons-round zp-row-arrow">chevron_right</span>
       </div>
     </div>
 
