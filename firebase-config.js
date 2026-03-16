@@ -396,3 +396,47 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 console.log("🔐 Firebase config loaded ✅");
+
+// ===== SHOP SAVE/LOAD (Permanent Firebase Storage) =====
+import {
+  collection as fbCollection,
+  addDoc as fbAddDoc,
+  getDocs as fbGetDocs,
+  query as fbQuery,
+  orderBy as fbOrderBy
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// Save shop permanently to Firestore
+window.saveShopToFirebase = async function(shopData) {
+  if (!db) return false;
+  try {
+    await fbAddDoc(fbCollection(db, "shops"), {
+      ...shopData,
+      createdAt: serverTimestamp()
+    });
+    console.log("☁️ Shop saved to Firebase:", shopData.name);
+    return true;
+  } catch(e) {
+    console.warn("Shop Firebase save failed:", e.message);
+    return false;
+  }
+};
+
+// Load all shops from Firestore
+window.loadShopsFromFirebase = async function() {
+  if (!db) return [];
+  try {
+    const q = fbQuery(fbCollection(db, "shops"), fbOrderBy("createdAt", "desc"));
+    const snap = await fbGetDocs(q);
+    const shops = [];
+    snap.forEach(doc => shops.push({ id: doc.id, ...doc.data() }));
+    console.log(`🏪 Loaded ${shops.length} shops from Firebase`);
+    // Also update localStorage cache
+    localStorage.setItem("zenvi_shops", JSON.stringify(shops));
+    return shops;
+  } catch(e) {
+    console.warn("Shops Firebase load failed:", e.message);
+    // Return localStorage cache as fallback
+    return JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
+  }
+};
