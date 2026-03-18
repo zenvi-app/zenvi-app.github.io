@@ -869,7 +869,8 @@ function forceEnableConfirm() {
   if (!btn) return;
   btn.disabled = false;
   btn.removeAttribute("disabled");
-  btn.style.cssText = "background:var(--primary);opacity:1;cursor:pointer;pointer-events:auto;";
+  btn.innerHTML = "📍 Confirm Location";
+  btn.style.cssText = "background:var(--primary) !important;opacity:1 !important;cursor:pointer !important;pointer-events:auto !important;";
 }
 
 // ===== CENTER PIN SETUP =====
@@ -1307,100 +1308,64 @@ function confirmAndProceed() {
     return;
   }
 
+  // Collect all possible names
   const nameEl = document.getElementById("selectedLocationName");
   const addrEl = document.getElementById("selectedLocationAddress");
-  const shownName = (nameEl?.textContent || "").trim();
+  const shown  = (nameEl?.textContent || "").trim();
   const shownAddr = (addrEl?.textContent || "").trim();
+  const curName = (currentLocation.name || "").trim();
 
-  const isValid = (n) => n && n.length > 2 
-    && n !== "📍 Dhundh raha hai..." 
-    && n !== "Map pe location chunein..."
-    && n !== "Location selected ✓"
-    && n !== "Map drag karo ya search karein"
-    && n !== "Selected Area"
-    && n !== "My Location"
-    && !n.includes("Map drag")
-    && !n.includes("drag karo")
-    && !isCoordinateString(n);
+  // Bad values to reject
+  const BAD = new Set(["📍 Dhundh raha hai...","Map pe location chunein...",
+    "Location selected ✓","Map drag karo ya search karein",
+    "Selected Area","My Location","Selecting..."]);
 
-  // If geocode still loading, wait up to 6 seconds
-  if (shownName === "📍 Dhundh raha hai..." || (!isValid(shownName) && !isValid(currentLocation.name))) {
-    const btn = document.getElementById("confirmBtn");
-    if (btn) { btn.innerHTML = "⏳ Naam aa raha hai..."; btn.disabled = true; }
-    let tries = 0;
-    const iv = setInterval(() => {
-      tries++;
-      const n = (document.getElementById("selectedLocationName")?.textContent || "").trim();
-      const cn = currentLocation?.name || "";
-      if (isValid(n) || isValid(cn) || tries >= 12) {
-        clearInterval(iv);
-        if (btn) { btn.innerHTML = "📍 Confirm Location"; btn.disabled = false; }
-        // Update currentLocation with whatever we have now
-        if (isValid(n) && !isValid(currentLocation?.name)) currentLocation.name = n;
-        confirmAndProceed();
-      }
-    }, 500);
-    // Safety: always re-enable button after 8 seconds no matter what
-    setTimeout(() => {
-      if (btn && btn.disabled) {
-        btn.innerHTML = "📍 Confirm Location";
-        btn.disabled = false;
-      }
-    }, 8000);
-    return;
-  }
+  const isGood = (n) => n && n.length > 2 && !BAD.has(n) && !isCoordinateString(n);
 
-  // Use best available name
-  let name = isValid(shownName) ? shownName : (isValid(currentLocation.name) ? currentLocation.name : "");
+  // Pick best name
+  let name = isGood(shown)   ? shown   :
+             isGood(curName) ? curName : "";
   let addr = shownAddr || currentLocation.fullAddr || "";
 
+  // If no good name — just save with generic label (NEVER block user)
+  if (!name) {
+    name = "Meri Location";
+    addr = "";
+  }
+
+  // Save
   currentLocation.name = name;
   currentLocation.fullAddr = addr;
-
   localStorage.setItem("zenvi_location", JSON.stringify(currentLocation));
   localStorage.setItem("zenvi_location_name", name);
   localStorage.setItem("zenvi_location_addr", addr);
 
+  // Update header
   const homeAddr = document.getElementById("homeAddress");
   if (homeAddr) {
-    if (name && addr && !addr.includes(name)) {
-      homeAddr.innerText = `${name}, ${addr.split(",")[0]}`;
-    } else if (name) {
-      homeAddr.innerText = name;
-    }
+    homeAddr.innerText = addr && !addr.includes(name)
+      ? name + ", " + addr.split(",")[0]
+      : name;
   }
 
-  // Update location label Swiggy style
-  const locLabel = document.getElementById("locLabel");
-  if (locLabel) locLabel.innerHTML = "📍 <strong>Home</strong>";
-
+  // Cloud sync
   if (window.zenviAuth?.auth?.currentUser && window.saveLocationToCloud) {
     window.saveLocationToCloud(currentLocation);
   }
 
-  // Offer to save as Home if not already saved
+  // Save as Home prompt (first time only)
   const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
-  const hasHome = saved.some(a => a.label === "Home");
-  
-  showToast(`📍 ${name} saved!`);
-  
-  if (!hasHome && name && name !== "My Location") {
+  if (!saved.some(a => a.label === "Home") && isGood(name)) {
     setTimeout(() => {
-      const saveModal = document.createElement("div");
-      saveModal.style.cssText = "position:fixed;bottom:110px;left:16px;right:16px;z-index:2000;background:#1e293b;color:white;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px;";
-      saveModal.innerHTML = `
-        <span style="font-size:20px;">🏠</span>
-        <p style="flex:1;font-size:13px;font-weight:600;margin:0;">"${name}" ko Home save karein?</p>
-        <button onclick="saveAsAddress('Home');this.parentElement.remove();" 
-          style="background:#16a34a;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button>
-        <button onclick="this.parentElement.remove();"
-          style="background:rgba(255,255,255,0.1);color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;">✕</button>
-      `;
-      document.body.appendChild(saveModal);
-      setTimeout(() => saveModal.remove(), 6000);
+      const snack = document.createElement("div");
+      snack.style.cssText = "position:fixed;bottom:110px;left:16px;right:16px;z-index:2000;background:#1e293b;color:white;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3);";
+      snack.innerHTML = `<span style="font-size:20px;">🏠</span><p style="flex:1;font-size:13px;font-weight:600;margin:0;">"${name}" ko Home save karein?</p><button onclick="saveAsAddress('Home');this.parentElement.remove();" style="background:#16a34a;color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Save</button><button onclick="this.parentElement.remove();" style="background:rgba(255,255,255,0.1);color:white;border:none;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;">✕</button>`;
+      document.body.appendChild(snack);
+      setTimeout(() => snack.remove(), 6000);
     }, 1500);
   }
-  
+
+  showToast("📍 " + name + " saved!");
   showPage("home");
 }
 
