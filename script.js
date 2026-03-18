@@ -1354,6 +1354,15 @@ function confirmAndProceed() {
       ? name + ", " + addr.split(",")[0]
       : name;
   }
+  // Check if this matches a saved address label
+  const allSaved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const matchedSaved = allSaved.find(a => a.name === name || (a.fullAddr||"").includes(name));
+  const locLabel2 = document.getElementById("locLabel");
+  if (locLabel2) {
+    const lbl = matchedSaved?.label || "Location";
+    const icons2 = {Home:"🏠",Work:"💼",Other:"📍",Location:"📍"};
+    locLabel2.textContent = (icons2[lbl]||"📍") + " " + lbl;
+  }
 
   // Cloud sync
   if (window.zenviAuth?.auth?.currentUser && window.saveLocationToCloud) {
@@ -1377,7 +1386,7 @@ function confirmAndProceed() {
 }
 
 // ===== SWIGGY-STYLE ADDRESS DETAILS FORM =====
-function showAddressDetailsForm(locationName, locationAddr) {
+function showAddressDetailsForm(locationName, locationAddr, existingAddr, editIdx) {
   let modal = document.getElementById("addressDetailsModal");
   if (!modal) { modal = document.createElement("div"); modal.id = "addressDetailsModal"; document.body.appendChild(modal); }
 
@@ -1419,11 +1428,11 @@ function showAddressDetailsForm(locationName, locationAddr) {
       <p style="font-size:13px;font-weight:700;color:#94a3b8;letter-spacing:0.5px;margin:0 0 10px;">ADDRESS DETAILS</p>
       
       <div style="margin-bottom:14px;">
-        <input id="addrFloor" placeholder="House no., Floor, Building name" type="text"
+        <input id="addrFloor" placeholder="House no., Floor, Building name" type="text" value="${existingAddr?.floor || ''}"
           style="width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">
       </div>
       <div style="margin-bottom:20px;">
-        <input id="addrLandmark" placeholder="Landmark (optional) e.g. Near School"
+        <input id="addrLandmark" placeholder="Landmark (optional) e.g. Near School" value="${existingAddr?.landmark || ''}"
           style="width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">
       </div>
 
@@ -1462,7 +1471,10 @@ function showAddressDetailsForm(locationName, locationAddr) {
     </div>
   `;
 
-  window._selectedAddressLabel = "Home";
+  window._selectedAddressLabel = existingAddr?.label || "Home";
+  window._editingAddrIdx = editIdx ?? -1;
+  // Pre-select label button
+  if (existingAddr?.label) setTimeout(() => selectAddressLabel(existingAddr.label), 100);
   modal.style.display = "block";
 }
 
@@ -1494,18 +1506,38 @@ window.saveAddressDetails = function(locationName, locationAddr) {
   if (phone) localStorage.setItem("zenvi_phone", phone);
 
   const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
-  const existing = saved.findIndex(a => a.label === label);
   const entry = {
     label, name: locationName, fullAddr: fullAddress,
     floor, landmark, contactName: name, phone,
     lat: currentLocation?.lat, lng: currentLocation?.lng,
     savedAt: new Date().toISOString()
   };
-  if (existing >= 0) saved[existing] = entry;
-  else saved.push(entry);
+  // If editing existing (by index), update that specific entry
+  const editIdx = window._editingAddrIdx ?? -1;
+  if (editIdx >= 0 && editIdx < saved.length) {
+    saved[editIdx] = entry; // Update existing
+  } else {
+    const byLabel = saved.findIndex(a => a.label === label);
+    if (byLabel >= 0) saved[byLabel] = entry;
+    else saved.push(entry);
+  }
+  window._editingAddrIdx = -1;
   localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved));
 
   document.getElementById("addressDetailsModal").style.display = "none";
+  
+  // Update header Zomato style
+  const homeAddrEl = document.getElementById("homeAddress");
+  const locLabelEl = document.getElementById("locLabel");
+  if (homeAddrEl) {
+    const displayAddr = floor ? floor + ", " + locationName : locationName;
+    homeAddrEl.innerText = displayAddr;
+  }
+  if (locLabelEl) {
+    const icons = {Home:"🏠",Work:"💼",Other:"📍"};
+    locLabelEl.textContent = (icons[label]||"📍") + " " + label;
+  }
+  
   showToast("✅ " + label + " address saved!");
   showPage("home");
 };
@@ -1551,9 +1583,12 @@ function restoreSavedLocation() {
     currentLocation = JSON.parse(saved);
     const addr = localStorage.getItem("zenvi_location_addr") || "";
     const homeAddr = document.getElementById("homeAddress");
-    // Never show coordinates in header
     if (homeAddr && savedName && !savedName.match(/\d+\.\d+/)) {
-      homeAddr.innerText = savedName + (addr ? `, ${addr.split(",")[0]}` : "");
+      // Show full address from saved addresses (like Zomato)
+      const savedAddresses = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+      const matchAddr = savedAddresses.find(a => a.name === savedName || a.label === "Home");
+      const displayText = matchAddr?.fullAddr || (savedName + (addr ? `, ${addr.split(",")[0]}` : ""));
+      homeAddr.innerText = displayText;
     }
 
     const locSection = document.getElementById("locationSection");
@@ -2023,7 +2058,7 @@ function setupProfileSettings() {
     }
     if (text === "Help & Support") {
       row.addEventListener("click", () => {
-        window.open("mailto:support@zenvi.app?subject=Zenvi Help", "_blank");
+        window.open("mailto:zenvi.support@gmail.com?subject=Zenvi Help - Issue Report", "_blank");
         showToast("📧 Email khul raha hai...");
       });
     }
@@ -2277,6 +2312,7 @@ function loadShopsList_inner() {} // placeholder
 function renderShopsList(shops) {
   const list = document.getElementById("shopsList");
   if (!list) return;
+  window._shopsData = shops; // Store globally for easy access
 
   const typeEmoji = {
     sabji:"🥬", phal:"🍎", kirana:"🛒", anaaj:"🌾",
@@ -2341,14 +2377,14 @@ function renderShopsList(shops) {
 
       <!-- Action buttons -->
       <div style="display:flex;gap:8px;" onclick="event.stopPropagation()">
-        <button onclick="viewShopDetail(${JSON.stringify(JSON.stringify(s)).slice(1,-1)})"
+        <button onclick="event.stopPropagation();viewShopByIndex(${shops.indexOf(s)})"
           style="flex:1;padding:10px;background:#f0fdf4;color:var(--primary);border:1.5px solid #bbf7d0;
           border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
           display:flex;align-items:center;justify-content:center;gap:6px;">
           <span class="material-icons-round" style="font-size:16px;">storefront</span> View
         </button>
         ${s.submittedBy === window.zenviAuth?.auth?.currentUser?.uid ? `
-        <button onclick="editMyShop(${JSON.stringify(JSON.stringify(s)).slice(1,-1)})"
+        <button onclick="event.stopPropagation();editShopByIndex(${shops.indexOf(s)})"
           style="flex:1;padding:10px;background:#eff6ff;color:#3b82f6;border:1.5px solid #bfdbfe;
           border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
           display:flex;align-items:center;justify-content:center;gap:6px;">
@@ -2793,30 +2829,26 @@ window.viewShopDetail = function(shopJson) {
   catch(e) { showToast("Error loading shop"); return; }
 
   const typeEmoji = { sabji:"🥬", phal:"🍎", kirana:"🛒", anaaj:"🌾", dairy:"🥛", mandi:"🏪", other:"✨" };
+  const typeLabel = { sabji:"Sabji Bhandar", phal:"Phal Bhandar", kirana:"Kirana Store", anaaj:"Anaaj/Dal", dairy:"Dairy/Milk", mandi:"Mandi/Wholesale", other:"Other" };
   const phone = s.phone?.replace(/\D/g,'') || "";
+  const isOwner = s.submittedBy === window.zenviAuth?.auth?.currentUser?.uid;
 
-  // Parse items with prices from items string
-  // Format: "Tomato-20, Potato-15" or just "Tomato, Potato"
+  // Parse items with mandi prices
   const itemsList = [];
   if (s.items) {
     s.items.split(",").forEach(item => {
       const parts = item.trim().split(/[-:]/);
       const name = parts[0]?.trim();
-      const price = parts[1]?.trim();
+      const customPrice = parts[1]?.trim();
       if (name) {
-        // Try to find price in marketData
-        const marketItem = marketData.find(m => m.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(m.name.toLowerCase()));
-        itemsList.push({
-          name,
-          price: price || marketItem?.price || null,
-          emoji: marketItem?.emoji || "🌱",
-          trend: marketItem?.trend || "stable"
-        });
+        const marketItem = marketData.find(m => 
+          m.name.toLowerCase().includes(name.toLowerCase()) || 
+          name.toLowerCase().includes(m.name.toLowerCase())
+        );
+        itemsList.push({ name, price: customPrice || marketItem?.price || null, emoji: marketItem?.emoji || "🌱", trend: marketItem?.trend || "stable" });
       }
     });
   }
-
-  const trendIcon = { up:"📈", down:"📉", stable:"➡️" };
 
   let modal = document.getElementById("shopDetailModal");
   if (!modal) { modal = document.createElement("div"); modal.id = "shopDetailModal"; document.body.appendChild(modal); }
@@ -2827,109 +2859,75 @@ window.viewShopDetail = function(shopJson) {
     <div style="background:linear-gradient(135deg,#15803d,#16a34a);padding:20px 16px 24px;">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <button onclick="document.getElementById('shopDetailModal').style.display='none';"
-          style="background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:36px;height:36px;
-          cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          style="background:rgba(255,255,255,0.2);border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
           <span class="material-icons-round" style="color:white;font-size:20px;">arrow_back</span>
         </button>
         <h2 style="color:white;font-size:18px;font-weight:800;flex:1;margin:0;">Shop Details</h2>
+        ${isOwner ? `<button onclick="editMyShop(${JSON.stringify(JSON.stringify(s)).slice(1,-1)})"
+          style="background:rgba(255,255,255,0.2);border:none;border-radius:20px;padding:6px 14px;color:white;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
+          ✏️ Edit
+        </button>` : ""}
       </div>
-      
       <div style="display:flex;gap:14px;align-items:center;">
-        <div style="width:64px;height:64px;background:rgba(255,255,255,0.2);border-radius:16px;
-          display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0;">
+        <div style="width:64px;height:64px;background:rgba(255,255,255,0.2);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:32px;">
           ${typeEmoji[s.type] || "🏪"}
         </div>
         <div>
           <h3 style="color:white;font-size:20px;font-weight:800;margin:0 0 4px;">${s.name}</h3>
-          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0 0 4px;">
-            ${s.type === "sabji" ? "Sabji Bhandar" : s.type === "phal" ? "Phal Bhandar" : s.type === "kirana" ? "Kirana Store" : s.type === "anaaj" ? "Anaaj/Dal" : s.type === "dairy" ? "Dairy" : s.type === "mandi" ? "Mandi" : "Shop"}
-          </p>
-          ${s.rating ? `<span style="background:rgba(255,255,255,0.2);color:white;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;">⭐ ${s.rating} (${s.ratingCount || 0} ratings)</span>` : ""}
+          <p style="color:rgba(255,255,255,0.8);font-size:13px;margin:0 0 6px;">${typeLabel[s.type] || "Shop"}</p>
+          ${s.rating ? `<span style="background:rgba(255,255,255,0.2);color:white;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">⭐ ${s.rating}</span>` : ""}
         </div>
       </div>
     </div>
 
     <div style="padding:16px;">
-
-      <!-- Info card -->
+      <!-- Info -->
       <div style="background:#f8fafc;border-radius:14px;padding:14px;margin-bottom:16px;">
-        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;">
+        <div style="display:flex;gap:10px;margin-bottom:8px;">
           <span class="material-icons-round" style="color:#16a34a;font-size:18px;margin-top:2px;">location_on</span>
           <p style="font-size:14px;font-weight:600;color:#1e293b;margin:0;">${s.address}</p>
         </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <div style="display:flex;gap:10px;">
           <span class="material-icons-round" style="color:#16a34a;font-size:18px;">person</span>
           <p style="font-size:14px;color:#475569;margin:0;">Owner: <strong>${s.owner}</strong></p>
         </div>
-        ${s.desc ? `<div style="display:flex;align-items:flex-start;gap:10px;">
-          <span class="material-icons-round" style="color:#16a34a;font-size:18px;">info</span>
-          <p style="font-size:13px;color:#64748b;margin:0;">${s.desc}</p>
-        </div>` : ""}
+        ${s.desc ? `<div style="display:flex;gap:10px;margin-top:8px;"><span class="material-icons-round" style="color:#16a34a;font-size:18px;">info</span><p style="font-size:13px;color:#64748b;margin:0;">${s.desc}</p></div>` : ""}
       </div>
 
-      <!-- Items & Prices -->
-      <h4 style="font-size:15px;font-weight:800;color:#1e293b;margin:0 0 12px;">
-        🛒 Items & Prices
-      </h4>
+      <!-- Items -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <h4 style="font-size:15px;font-weight:800;color:#1e293b;margin:0;">🛒 Items & Prices</h4>
+        ${isOwner ? `<button onclick="openAddItemsToShop('${s.id || s.name}')"
+          style="background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
+          + Add Items
+        </button>` : ""}
+      </div>
 
       ${itemsList.length > 0 ? `
         <div style="background:white;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;margin-bottom:16px;">
           ${itemsList.map((item, i) => `
-            <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;
-              ${i < itemsList.length-1 ? 'border-bottom:1px solid #f1f5f9;' : ''}">
+            <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;${i < itemsList.length-1?'border-bottom:1px solid #f1f5f9;':''}">
               <span style="font-size:22px;">${item.emoji}</span>
-              <div style="flex:1;">
-                <p style="font-size:14px;font-weight:700;color:#1e293b;margin:0;">${item.name}</p>
-                <p style="font-size:11px;color:#94a3b8;margin:0;">Mandi rate</p>
-              </div>
-              ${item.price 
-                ? `<div style="text-align:right;">
-                    <p style="font-size:16px;font-weight:800;color:#16a34a;margin:0;">₹${item.price}</p>
-                    <p style="font-size:10px;color:#94a3b8;margin:0;">/kg ${trendIcon[item.trend]||""}</p>
-                  </div>`
-                : `<span style="font-size:12px;color:#94a3b8;">Price N/A</span>`
-              }
-            </div>
-          `).join('')}
-        </div>
-      ` : `
+              <p style="flex:1;font-size:14px;font-weight:700;color:#1e293b;margin:0;">${item.name}</p>
+              ${item.price ? `<div style="text-align:right;"><p style="font-size:16px;font-weight:800;color:#16a34a;margin:0;">₹${parseFloat(item.price).toFixed(0)}</p><p style="font-size:10px;color:#94a3b8;margin:0;">/kg</p></div>` : `<span style="font-size:12px;color:#94a3b8;">N/A</span>`}
+            </div>`).join('')}
+        </div>` : `
         <div style="background:#f8fafc;border-radius:14px;padding:24px;text-align:center;margin-bottom:16px;">
           <p style="font-size:32px;margin:0 0 8px;">🌱</p>
-          <p style="font-size:14px;color:#64748b;margin:0;">Is dukaan ne abhi items list nahi kiye.</p>
-          <p style="font-size:12px;color:#94a3b8;margin-top:4px;">WhatsApp pe poochein</p>
-        </div>
-      `}
+          <p style="font-size:14px;color:#64748b;margin:0;">${isOwner ? 'Apne items add karein!' : 'Is dukaan ne items list nahi kiye.'}</p>
+          ${isOwner ? `<button onclick="openAddItemsToShop('${s.id || s.name}')" style="margin-top:12px;padding:10px 20px;background:#16a34a;color:white;border:none;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">+ Add Items</button>` : ""}
+        </div>`}
 
-      <!-- Action buttons -->
-      <div style="display:flex;gap:10px;margin-bottom:16px;">
-        ${s.lat && s.lng ? `
-        <button onclick="window.open('https://maps.google.com/?q=${s.lat},${s.lng}', '_blank')"
-          style="flex:1;padding:14px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;
-          border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
-          display:flex;align-items:center;justify-content:center;gap:6px;">
-          <span class="material-icons-round" style="font-size:18px;">map</span> Map
-        </button>` : ""}
-        ${phone ? `
-        <button onclick="window.open('https://wa.me/${phone}?text=Hi! Zenvi app se aapki dukaan dekhi. Items aur price batayein please.', '_blank')"
-          style="flex:2;padding:14px;background:#16a34a;color:white;border:none;
-          border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
-          display:flex;align-items:center;justify-content:center;gap:6px;">
-          💬 WhatsApp
-        </button>` : ""}
+      <!-- Buttons -->
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        ${s.lat && s.lng ? `<button onclick="window.open('https://maps.google.com/?q=${s.lat},${s.lng}','_blank')" style="flex:1;padding:14px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons-round" style="font-size:18px;">map</span> Map</button>` : ""}
+        ${phone ? `<button onclick="window.open('https://wa.me/${phone}?text=Hi! Zenvi app se aapki dukaan dekhi.','_blank')" style="flex:2;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;">💬 WhatsApp</button>` : ""}
       </div>
-
-      <!-- Rate this shop -->
-      <button onclick="openRateShop('${s.id || s.name}', '${s.name}')"
-        style="width:100%;padding:14px;background:white;color:#f59e0b;border:2px solid #fde68a;
-        border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">
-        ⭐ Rate this Shop
-      </button>
-
+      <button onclick="openRateShop('${s.id || s.name}','${s.name}')" style="width:100%;padding:14px;background:white;color:#f59e0b;border:2px solid #fde68a;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">⭐ Rate this Shop</button>
     </div>
   `;
-
   modal.style.display = "block";
-};
+};;
 
 // ===== SWIGGY-STYLE LOCATION SELECTOR =====
 function openLocationSelector() {
@@ -3106,7 +3104,11 @@ function saveFinalLocation(name, addr) {
   localStorage.setItem("zenvi_location_name", name);
   localStorage.setItem("zenvi_location_addr", addr);
   const homeAddr = document.getElementById("homeAddress");
-  if (homeAddr) homeAddr.innerText = name + (addr && !addr.includes(name) ? `, ${addr.split(",")[0]}` : "");
+  if (homeAddr) {
+    const savedAddresses = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+    const matchAddr = savedAddresses.find(a => a.name === name || a.label === "Home");
+    homeAddr.innerText = matchAddr?.fullAddr || (addr ? name + ", " + addr.split(",")[0] : name);
+  }
   if (window.zenviAuth?.auth?.currentUser && window.saveLocationToCloud) window.saveLocationToCloud(currentLocation);
   showToast(`📍 ${name}`);
 }
@@ -3176,9 +3178,135 @@ window.editSavedAddress = function(idx) {
   const addr = saved[idx];
   if (!addr) return;
   document.getElementById("locationSelectorModal").style.display = "none";
-  // Set currentLocation to saved address then show form
   currentLocation = { lat: addr.lat, lng: addr.lng, name: addr.name, fullAddr: addr.fullAddr };
-  showAddressDetailsForm(addr.name, addr.fullAddr || "");
+  // Show edit form with pre-filled OLD data
+  showEditAddressForm(addr, idx);
+};
+
+function showEditAddressForm(addr, idx) {
+  let modal = document.getElementById("editAddressModal");
+  if (!modal) { modal = document.createElement("div"); modal.id = "editAddressModal"; document.body.appendChild(modal); }
+
+  modal.style.cssText = "position:fixed;inset:0;z-index:4000;background:white;overflow-y:auto;";
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:16px;background:white;border-bottom:1px solid #f1f5f9;position:sticky;top:0;z-index:1;">
+      <button onclick="document.getElementById('editAddressModal').style.display='none';openLocationSelector();"
+        style="background:none;border:none;cursor:pointer;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
+        <span class="material-icons-round">arrow_back</span>
+      </button>
+      <h2 style="font-size:17px;font-weight:800;margin:0;flex:1;">Edit Address</h2>
+      <button onclick="saveEditedAddress(${idx})"
+        style="background:#16a34a;color:white;border:none;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
+        Save
+      </button>
+    </div>
+
+    <!-- Map preview -->
+    <div style="height:120px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;">
+      <span style="font-size:32px;">📍</span>
+      <p style="font-size:13px;font-weight:700;color:#16a34a;margin:0;">${addr.name || ""}</p>
+      <button onclick="document.getElementById('editAddressModal').style.display='none';showPage('explore');"
+        style="font-size:11px;color:#3b82f6;background:none;border:none;cursor:pointer;font-family:inherit;font-weight:600;">
+        Change on Map →
+      </button>
+    </div>
+
+    <div style="padding:16px;">
+      <!-- Current location row (like Zomato) -->
+      <div style="background:#fff5f5;border-radius:12px;padding:14px;margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+        <span class="material-icons-round" style="color:#ef4444;">location_on</span>
+        <div>
+          <p style="font-size:13px;font-weight:700;color:#1e293b;margin:0;">${addr.name}</p>
+          <p style="font-size:12px;color:#64748b;margin:0;">${addr.fullAddr || ""}</p>
+        </div>
+      </div>
+
+      <p style="font-size:11px;font-weight:800;color:#94a3b8;letter-spacing:0.5px;margin:0 0 10px;">ADDRESS DETAILS</p>
+      <div style="margin-bottom:14px;">
+        <input id="eaFloor" placeholder="House no., Floor, Building name" value="${addr.floor || ''}"
+          style="width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:20px;">
+        <input id="eaLandmark" placeholder="Landmark (optional)" value="${addr.landmark || ''}"
+          style="width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;">
+      </div>
+
+      <p style="font-size:11px;font-weight:800;color:#94a3b8;letter-spacing:0.5px;margin:0 0 10px;">YOUR DETAILS</p>
+      <div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <span class="material-icons-round" style="color:#94a3b8;font-size:20px;">phone</span>
+        <input id="eaName" placeholder="Your name" value="${addr.contactName || ''}"
+          style="flex:1;border:none;outline:none;font-size:14px;font-family:inherit;font-weight:600;">
+        <span style="color:#e2e8f0;">|</span>
+        <input id="eaPhone" placeholder="+91 XXXXXXXXXX" value="${addr.phone || ''}" type="tel"
+          style="flex:1;border:none;outline:none;font-size:14px;font-family:inherit;color:#64748b;">
+      </div>
+
+      <p style="font-size:11px;font-weight:800;color:#94a3b8;letter-spacing:0.5px;margin:0 0 10px;">SAVE ADDRESS AS</p>
+      <div style="display:flex;gap:10px;margin-bottom:24px;" id="eaLabelRow">
+        ${["Home","Work","Other"].map(label => `
+          <button onclick="selectEALabel('${label}')" id="ealabel${label}"
+            style="flex:1;padding:12px 8px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;
+            border:2px solid ${addr.label===label?'#16a34a':'#e2e8f0'};background:${addr.label===label?'#f0fdf4':'white'};
+            color:${addr.label===label?'#16a34a':'#64748b'};display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.2s;">
+            <span class="material-icons-round" style="font-size:16px;">${label==='Home'?'home':label==='Work'?'business':'location_on'}</span>
+            ${label}
+          </button>`).join('')}
+      </div>
+
+      <button onclick="saveEditedAddress(${idx})"
+        style="width:100%;padding:16px;background:#16a34a;color:white;border:none;border-radius:14px;
+        font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(22,163,74,0.3);">
+        Save Address
+      </button>
+    </div>
+  `;
+
+  window._editAddressLabel = addr.label || "Home";
+  modal.style.display = "block";
+}
+
+window.selectEALabel = function(label) {
+  window._editAddressLabel = label;
+  ["Home","Work","Other"].forEach(l => {
+    const btn = document.getElementById("ealabel" + l);
+    if (!btn) return;
+    const active = l === label;
+    btn.style.borderColor = active ? "#16a34a" : "#e2e8f0";
+    btn.style.background = active ? "#f0fdf4" : "white";
+    btn.style.color = active ? "#16a34a" : "#64748b";
+  });
+};
+
+window.saveEditedAddress = function(idx) {
+  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  if (!saved[idx]) return;
+  const floor = document.getElementById("eaFloor")?.value.trim() || "";
+  const landmark = document.getElementById("eaLandmark")?.value.trim() || "";
+  const name = document.getElementById("eaName")?.value.trim() || "";
+  const phone = document.getElementById("eaPhone")?.value.trim() || "";
+  const label = window._editAddressLabel || saved[idx].label;
+  
+  // Keep original lat/lng/name, only update details
+  saved[idx] = {
+    ...saved[idx],
+    label, floor, landmark,
+    contactName: name, phone,
+    fullAddr: [floor, saved[idx].name, landmark, saved[idx].fullAddr].filter(Boolean).join(", ")
+  };
+  
+  if (name) localStorage.setItem("zenvi_username", name);
+  if (phone) localStorage.setItem("zenvi_phone", phone);
+  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved));
+  
+  // Update current location display if this is selected
+  const currentName = localStorage.getItem("zenvi_location_name");
+  if (currentName === saved[idx].name) {
+    const homeAddr = document.getElementById("homeAddress");
+    if (homeAddr) homeAddr.innerText = saved[idx].fullAddr;
+  }
+  
+  document.getElementById("editAddressModal").style.display = "none";
+  showToast("✅ Address updated!");
 };
 
 window.shareSavedAddress = function(idx) {
@@ -3259,4 +3387,80 @@ window.saveEditedShop = function(shopId) {
   document.getElementById("editShopModal").style.display = "none";
   showToast("✅ Shop updated!");
   loadShopsList();
+};
+
+// ===== ADD ITEMS TO SHOP (for owner) =====
+window.openAddItemsToShop = function(shopId) {
+  let modal = document.getElementById("addItemsShopModal");
+  if (!modal) { modal = document.createElement("div"); modal.id = "addItemsShopModal"; document.body.appendChild(modal); }
+
+  const shops = JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
+  const shop = shops.find(s => s.id === shopId || s.name === shopId);
+  const currentItems = shop?.items || "";
+
+  modal.style.cssText = "position:fixed;inset:0;z-index:4500;background:white;overflow-y:auto;";
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:16px;background:white;border-bottom:1px solid #f1f5f9;position:sticky;top:0;z-index:1;">
+      <button onclick="document.getElementById('addItemsShopModal').style.display='none';" style="background:none;border:none;cursor:pointer;"><span class="material-icons-round">arrow_back</span></button>
+      <h2 style="font-size:17px;font-weight:800;margin:0;flex:1;">Shop Items Add Karein</h2>
+    </div>
+    <div style="padding:16px;">
+      <p style="font-size:13px;color:#64748b;margin-bottom:16px;">Format: <strong>Item naam-Price</strong> (comma se alag karo)<br>Example: Tomato-22, Potato-18, Onion-25</p>
+      
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:700;color:#94a3b8;display:block;margin-bottom:6px;">CURRENT ITEMS</label>
+        <textarea id="shopItemsInput" rows="6" placeholder="Tomato-22, Potato-18, Onion-25, Garlic-80"
+          style="width:100%;padding:14px;border:1.5px solid #e2e8f0;border-radius:12px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box;resize:none;">${currentItems}</textarea>
+      </div>
+
+      <!-- Quick add from market -->
+      <p style="font-size:12px;font-weight:700;color:#94a3b8;margin-bottom:10px;">QUICK ADD (tap to add):</p>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+        ${marketData.slice(0, 15).map(item => `
+          <button onclick="quickAddItem('${item.name}', '${item.price}')"
+            style="padding:6px 12px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">
+            ${item.emoji} ${item.name} ₹${parseFloat(item.price).toFixed(0)}
+          </button>`).join('')}
+      </div>
+
+      <button onclick="saveShopItems('${shopId}')"
+        style="width:100%;padding:16px;background:#16a34a;color:white;border:none;border-radius:14px;font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;">
+        💾 Save Items
+      </button>
+    </div>
+  `;
+  modal.style.display = "block";
+};
+
+window.quickAddItem = function(name, price) {
+  const input = document.getElementById("shopItemsInput");
+  if (!input) return;
+  const current = input.value.trim();
+  const newItem = name + "-" + parseFloat(price).toFixed(0);
+  input.value = current ? current + ", " + newItem : newItem;
+  showToast("✅ " + name + " added!");
+};
+
+window.saveShopItems = function(shopId) {
+  const items = document.getElementById("shopItemsInput")?.value.trim();
+  const shops = JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
+  const idx = shops.findIndex(s => s.id === shopId || s.name === shopId);
+  if (idx >= 0) {
+    shops[idx].items = items;
+    localStorage.setItem("zenvi_shops", JSON.stringify(shops));
+    showToast("✅ Items saved!");
+    document.getElementById("addItemsShopModal").style.display = "none";
+    loadShopsList();
+  }
+};
+window.viewShopByIndex = function(idx) {
+  const shops = window._shopsData || JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
+  if (idx < 0 || idx >= shops.length) { showToast("Shop nahi mila"); return; }
+  window.viewShopDetail(shops[idx]);
+};
+
+window.editShopByIndex = function(idx) {
+  const shops = window._shopsData || JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
+  if (idx < 0 || idx >= shops.length) { showToast("Shop nahi mila"); return; }
+  window.editMyShop(shops[idx]);
 };
