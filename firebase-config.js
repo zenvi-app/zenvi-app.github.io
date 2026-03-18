@@ -370,8 +370,19 @@ window.logout = function() {
   if (!auth) return;
   if (!confirm("Logout karna chahte hain?")) return;
   signOut(auth).then(() => {
+    // Clear ALL user-specific cached data for privacy
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      // Keep non-user-specific data (prices cache, location, shops list)
+      if (key && (key.includes("zenvi_user_") || key === "zenvi_phone" || key === "zenvi_username")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    sessionStorage.removeItem("zenvi_launched");
     resetProfileUI();
-    if (window.showToast) window.showToast("👋 Logged out!");
+    if (window.showToast) window.showToast("👋 Logged out safely!");
   }).catch(console.error);
 };
 
