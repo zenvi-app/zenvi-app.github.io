@@ -1316,9 +1316,14 @@ function confirmAndProceed() {
     && n !== "📍 Dhundh raha hai..." 
     && n !== "Map pe location chunein..."
     && n !== "Location selected ✓"
+    && n !== "Map drag karo ya search karein"
+    && n !== "Selected Area"
+    && n !== "My Location"
+    && !n.includes("Map drag")
+    && !n.includes("drag karo")
     && !isCoordinateString(n);
 
-  // If geocode is still loading, wait up to 4 seconds
+  // If geocode still loading, wait up to 6 seconds
   if (shownName === "📍 Dhundh raha hai..." || (!isValid(shownName) && !isValid(currentLocation.name))) {
     const btn = document.getElementById("confirmBtn");
     if (btn) { btn.innerHTML = "⏳ Naam aa raha hai..."; btn.disabled = true; }
@@ -1326,17 +1331,18 @@ function confirmAndProceed() {
     const iv = setInterval(() => {
       tries++;
       const n = (document.getElementById("selectedLocationName")?.textContent || "").trim();
-      if (isValid(n) || tries >= 8) {
+      const cn = currentLocation?.name || "";
+      if (isValid(n) || isValid(cn) || tries >= 12) {
         clearInterval(iv);
         if (btn) { btn.innerHTML = "📍 Confirm Location"; btn.disabled = false; }
-        confirmAndProceed(); // retry
+        confirmAndProceed();
       }
     }, 500);
     return;
   }
 
   // Use best available name
-  let name = isValid(shownName) ? shownName : (isValid(currentLocation.name) ? currentLocation.name : "My Location");
+  let name = isValid(shownName) ? shownName : (isValid(currentLocation.name) ? currentLocation.name : "");
   let addr = shownAddr || currentLocation.fullAddr || "";
 
   currentLocation.name = name;
@@ -1347,7 +1353,17 @@ function confirmAndProceed() {
   localStorage.setItem("zenvi_location_addr", addr);
 
   const homeAddr = document.getElementById("homeAddress");
-  if (homeAddr) homeAddr.innerText = name + (addr && !addr.includes(name) ? `, ${addr.split(",")[0]}` : "");
+  if (homeAddr) {
+    if (name && addr && !addr.includes(name)) {
+      homeAddr.innerText = `${name}, ${addr.split(",")[0]}`;
+    } else if (name) {
+      homeAddr.innerText = name;
+    }
+  }
+
+  // Update location label Swiggy style
+  const locLabel = document.getElementById("locLabel");
+  if (locLabel) locLabel.innerHTML = "📍 <strong>Home</strong>";
 
   if (window.zenviAuth?.auth?.currentUser && window.saveLocationToCloud) {
     window.saveLocationToCloud(currentLocation);
@@ -1405,6 +1421,9 @@ function restoreSavedLocation() {
 
     const locSection = document.getElementById("locationSection");
     if (locSection) locSection.classList.add("location-set");
+    // Update label
+    const locLabel = document.getElementById("locLabel");
+    if (locLabel) locLabel.innerHTML = "📍 <strong>Home</strong>";
     console.log("📍 Location restored:", savedName);
   } catch(e) {
     // Clear corrupted data
@@ -1566,7 +1585,7 @@ function setupEvents() {
   });
 
   // Location section
-  document.getElementById("locationSection")?.addEventListener("click", () => showPage("explore"));
+  document.getElementById("locationSection")?.addEventListener("click", () => openLocationSelector());
   document.getElementById("profileIcon")?.addEventListener("click", () => showPage("profile"));
   document.getElementById("backBtn")?.addEventListener("click", () => showPage("home"));
   document.getElementById("confirmBtn")?.addEventListener("click", confirmAndProceed);
@@ -1945,7 +1964,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Clear ALL bad/coordinate location data on startup
   const savedName = localStorage.getItem("zenvi_location_name") || "";
   const badNames = ["Bettiah, Bettiah", "Bettiah,Bettiah", "Bettiah"];
-  const isBadLocation = isCoordinateString(savedName) || badNames.includes(savedName.trim());
+  const isBadLocation = isCoordinateString(savedName) || badNames.includes(savedName.trim()) 
+    || savedName.includes("Map drag") || savedName === "My Location" 
+    || savedName === "Selected Area" || savedName.includes("drag karo");
   if (isBadLocation) {
     localStorage.removeItem("zenvi_location");
     localStorage.removeItem("zenvi_location_name");
