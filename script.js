@@ -168,8 +168,7 @@ function renderItems(data) {
       </div>
     `;
     card.addEventListener("click", () => {
-      document.getElementById("searchInput").value = item.name;
-      filterItems(item.name);
+      window.showPriceHistory(item.name);
     });
     grid.appendChild(card);
   });
@@ -300,7 +299,7 @@ function updateStats(data) {
 }
 
 // ===== FETCH LIVE PRICES =====
-const DATA_API_URL = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd0000013a00e18ef65d4b0063eac2e34ced0b9f&format=json&limit=4000`;
+const DATA_API_URL = `https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd0000013a00e18ef65d4b0063eac2e34ced0b9f&format=json&limit=500`;
 
 async function fetchLivePrices() {
   const grid = document.getElementById("itemsGrid");
@@ -393,10 +392,11 @@ async function fetchLivePrices() {
       console.log("🔍 Fuse.js ready");
     }
 
-    // ✅ Save to cache
+    // ✅ Save to cache + price history
     try {
       localStorage.setItem("zenvi_prices", JSON.stringify(marketData));
       localStorage.setItem("zenvi_prices_time", Date.now().toString());
+      savePriceHistory(marketData); // Save for graph
     } catch(e) {}
 
     // Merge community prices
@@ -983,14 +983,19 @@ async function reverseGeocode(lat, lng) {
   }
 
   // Run Mappls + Nominatim in PARALLEL for speed
+  const mapplsCtrl = new AbortController();
+  const nomCtrl = new AbortController();
+  setTimeout(() => mapplsCtrl.abort(), 5000);
+  setTimeout(() => nomCtrl.abort(), 6000);
+
   const mapplsPromise = fetch(
     `https://apis.mappls.com/advancedmaps/v1/${MAPPLS_API_KEY}/rev_geocode?lat=${lat}&lng=${lng}`,
-    { signal: AbortSignal.timeout(5000) }
+    { signal: mapplsCtrl.signal }
   ).then(r => r.json()).catch(() => null);
 
   const nominatimPromise = fetch(
     `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-    { headers: { 'Accept-Language': 'hi,en' }, signal: AbortSignal.timeout(6000) }
+    { headers: { 'Accept-Language': 'hi,en' }, signal: nomCtrl.signal }
   ).then(r => r.json()).catch(() => null);
 
   // Try Mappls first
@@ -2995,7 +3000,7 @@ window.viewShopDetail = function(shopJson) {
 
       <!-- Buttons -->
       <div style="display:flex;gap:10px;margin-bottom:14px;">
-        ${s.lat && s.lng ? `<button onclick="window.open('https://maps.google.com/?q=${s.lat},${s.lng}','_blank')" style="flex:1;padding:14px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons-round" style="font-size:18px;">map</span> Map</button>` : ""}
+        ${s.lat && s.lng ? `<button onclick="window.open('https://www.google.com/maps?q=${s.lat},${s.lng}','_blank')" style="flex:1;padding:14px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;"><span class="material-icons-round" style="font-size:18px;">map</span> Map</button>` : ""}
         ${phone ? `<button onclick="window.open('https://wa.me/${phone}?text=Hi! Zenvi app se aapki dukaan dekhi.','_blank')" style="flex:2;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;">💬 WhatsApp</button>` : ""}
       </div>
       <button onclick="openRateShop('${s.id || s.name}','${s.name}')" style="width:100%;padding:14px;background:white;color:#f59e0b;border:2px solid #fde68a;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">⭐ Rate this Shop</button>
@@ -3390,7 +3395,7 @@ window.shareSavedAddress = function(idx) {
   const addr = saved[idx];
   if (!addr) return;
   const text = addr.label + ": " + (addr.fullAddr || addr.name) +
-    (addr.lat && addr.lng ? "\nMap: https://maps.google.com/?q=" + addr.lat + "," + addr.lng : "");
+    (addr.lat && addr.lng ? "\nMap: https://www.google.com/maps?q=" + addr.lat + "," + addr.lng : "");
   if (navigator.share) {
     navigator.share({ title: "My " + addr.label + " Address", text });
   } else {
@@ -3800,4 +3805,131 @@ window.loadLocationRecommendations = async function(query_text) {
     });
     return results;
   } catch(e) { return []; }
+};
+
+// ===== PRICE HISTORY GRAPH =====
+function savePriceHistory(items) {
+  const today = new Date().toLocaleDateString('en-IN');
+  const history = JSON.parse(localStorage.getItem("zenvi_price_history") || "{}");
+  
+  // Save top 20 items price for today
+  items.slice(0, 20).forEach(item => {
+    if (!history[item.name]) history[item.name] = [];
+    const lastEntry = history[item.name].slice(-1)[0];
+    if (!lastEntry || lastEntry.date !== today) {
+      history[item.name].push({ date: today, price: parseFloat(item.price) });
+      if (history[item.name].length > 30) history[item.name].shift(); // Keep 30 days
+    }
+  });
+  
+  try { localStorage.setItem("zenvi_price_history", JSON.stringify(history)); } catch(e) {}
+}
+
+window.showPriceHistory = function(itemName) {
+  const history = JSON.parse(localStorage.getItem("zenvi_price_history") || "{}");
+  const data = history[itemName] || [];
+  const item = marketData.find(i => i.name === itemName);
+
+  let modal = document.getElementById("priceHistoryModal");
+  if (!modal) { modal = document.createElement("div"); modal.id = "priceHistoryModal"; document.body.appendChild(modal); }
+
+  modal.style.cssText = "position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;";
+
+  const maxPrice = data.length ? Math.max(...data.map(d => d.price)) * 1.2 : 100;
+  const minPrice = data.length ? Math.min(...data.map(d => d.price)) * 0.8 : 0;
+  const range = maxPrice - minPrice || 1;
+
+  const chartWidth = 320;
+  const chartHeight = 140;
+  const padL = 40, padR = 10, padT = 10, padB = 30;
+  const w = chartWidth - padL - padR;
+  const h = chartHeight - padT - padB;
+
+  let svgPath = "", svgDots = "", svgLabels = "";
+  
+  if (data.length >= 2) {
+    const pts = data.map((d, i) => ({
+      x: padL + (i / (data.length - 1)) * w,
+      y: padT + h - ((d.price - minPrice) / range) * h,
+      price: d.price, date: d.date
+    }));
+    
+    svgPath = `<path d="M${pts.map(p => `${p.x},${p.y}`).join(" L")}" 
+      fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M${pts[0].x},${pts[0].y} L${pts.map(p => `${p.x},${p.y}`).join(" L")} L${pts[pts.length-1].x},${padT+h} L${pts[0].x},${padT+h} Z" 
+      fill="rgba(22,163,74,0.1)"/>`;
+    
+    svgDots = pts.map(p => `<circle cx="${p.x}" cy="${p.y}" r="4" fill="#16a34a"/>`).join("");
+    
+    // X labels (show first, middle, last)
+    [0, Math.floor(data.length/2), data.length-1].forEach(i => {
+      if (data[i]) {
+        const p = pts[i];
+        svgLabels += `<text x="${p.x}" y="${padT+h+20}" text-anchor="middle" font-size="9" fill="#94a3b8">${data[i].date.split("/").slice(0,2).join("/")}</text>`;
+      }
+    });
+    
+    // Y labels
+    [minPrice, (minPrice+maxPrice)/2, maxPrice].forEach((v, i) => {
+      const y = padT + h - (i * h / 2);
+      svgLabels += `<text x="${padL-4}" y="${y+4}" text-anchor="end" font-size="9" fill="#94a3b8">₹${v.toFixed(0)}</text>`;
+    });
+  }
+
+  modal.innerHTML = `
+    <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:24px 20px 40px;max-height:80vh;overflow-y:auto;">
+      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 20px;"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <span style="font-size:32px;">${item?.emoji||"🌱"}</span>
+        <div>
+          <h3 style="font-size:18px;font-weight:800;margin:0;">${itemName}</h3>
+          <p style="font-size:13px;color:#64748b;margin:0;">Price History (Last 30 days)</p>
+        </div>
+        <div style="margin-left:auto;text-align:right;">
+          <p style="font-size:22px;font-weight:800;color:#16a34a;margin:0;">₹${item?.price||"--"}</p>
+          <p style="font-size:11px;color:#94a3b8;margin:0;">Today</p>
+        </div>
+      </div>
+
+      ${data.length >= 2 ? `
+        <div style="background:#f8fafc;border-radius:16px;padding:16px;margin-bottom:16px;overflow-x:auto;">
+          <svg width="${chartWidth}" height="${chartHeight}" style="overflow:visible;">
+            <!-- Grid lines -->
+            ${[0,1,2].map(i => `<line x1="${padL}" y1="${padT + i*h/2}" x2="${padL+w}" y2="${padT + i*h/2}" stroke="#e2e8f0" stroke-width="1"/>`).join("")}
+            ${svgPath}${svgDots}${svgLabels}
+          </svg>
+        </div>
+        
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="background:#f0fdf4;border-radius:12px;padding:12px;text-align:center;">
+            <p style="font-size:16px;font-weight:800;color:#16a34a;margin:0;">₹${Math.min(...data.map(d=>d.price)).toFixed(0)}</p>
+            <p style="font-size:11px;color:#64748b;margin:0;">Lowest</p>
+          </div>
+          <div style="background:#fff7ed;border-radius:12px;padding:12px;text-align:center;">
+            <p style="font-size:16px;font-weight:800;color:#f59e0b;margin:0;">₹${Math.max(...data.map(d=>d.price)).toFixed(0)}</p>
+            <p style="font-size:11px;color:#64748b;margin:0;">Highest</p>
+          </div>
+          <div style="background:#f0fdf4;border-radius:12px;padding:12px;text-align:center;">
+            <p style="font-size:16px;font-weight:800;color:#1e293b;margin:0;">${data.length}</p>
+            <p style="font-size:11px;color:#64748b;margin:0;">Days</p>
+          </div>
+        </div>
+      ` : `
+        <div style="text-align:center;padding:40px;background:#f8fafc;border-radius:16px;margin-bottom:16px;">
+          <p style="font-size:32px;margin:0 0 8px;">📊</p>
+          <p style="font-size:14px;color:#64748b;margin:0;">Pehla din! History collect ho rahi hai.</p>
+          <p style="font-size:12px;color:#94a3b8;margin-top:4px;">Daily aao → graph banta jaayega</p>
+        </div>
+      `}
+
+      <button onclick="document.getElementById('priceHistoryModal').style.display='none';"
+        style="width:100%;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">
+        Close
+      </button>
+    </div>
+  `;
+
+  modal.style.display = "flex";
+  modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 };
