@@ -1250,3 +1250,25 @@ body.dark-mode .shop-card-new { background: #1e293b; border-color: #334155; }
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
+
+/* ===== SELECTED LOCATION CARD ===== */
+.selected-location-card {
+  display: flex; gap: 12px; background: white;
+  padding: 14px 16px; border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  align-items: center; margin-bottom: 12px;
+  border: 1px solid #f1f5f9;
+}
+.selected-location-card .loc-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: #16a34a; display: flex;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.selected-location-card h3 {
+  font-size: 15px; font-weight: 800; color: #1e293b;
+  margin: 0 0 2px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.selected-location-card p {
+  font-size: 12px; color: #64748b; margin: 0;
+}

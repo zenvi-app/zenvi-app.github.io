@@ -1343,6 +1343,22 @@ function confirmLocation(name) {
   if (addrEl) addrEl.textContent = "Confirm karein is location ko";
 }
 
+
+// ===== UPDATE HEADER LOCATION =====
+function updateHeaderLocation(name, label, floor) {
+  const homeAddrEl = document.getElementById("homeAddress");
+  const locLabelEl = document.getElementById("locLabel");
+  
+  if (homeAddrEl && name) {
+    // Show: "12, Rani Pakdi" or just "Rani Pakdi"
+    homeAddrEl.innerText = floor ? floor + ", " + name : name;
+  }
+  if (locLabelEl && label) {
+    const icons = {Home:"🏠", Work:"💼", Other:"📍", Location:"📍"};
+    locLabelEl.textContent = (icons[label]||"📍") + " " + label;
+  }
+}
+
 function confirmAndProceed() {
   if (!currentLocation?.lat || !currentLocation?.lng) {
     showToast("⚠️ Map pe pin rakho!");
@@ -1566,8 +1582,35 @@ window.saveAddressDetails = function(locationName, locationAddr) {
   const floor = document.getElementById("addrFloor")?.value.trim();
   const landmark = document.getElementById("addrLandmark")?.value.trim();
   const name = document.getElementById("addrName")?.value.trim();
-  const phone = document.getElementById("addrPhone")?.value.trim();
+  const phone = document.getElementById("addrPhone")?.value.replace(/\D/g,"").trim();
   const label = window._selectedAddressLabel || "Home";
+
+  // === STRICT VALIDATION ===
+  const locName = cleanLocName(locationName);
+  const BAD_LOC = ["Selected Location","My Location","Meri Location","My Area",""];
+  
+  if (!locName || BAD_LOC.includes(locName) || isCoordinateString(locName)) {
+    showToast("📍 Valid location select karein");
+    document.getElementById("addressDetailsModal").style.display = "none";
+    showPage("explore");
+    return;
+  }
+  if (!floor) {
+    const el = document.getElementById("addrFloor");
+    if (el) { el.style.borderColor = "#ef4444"; el.focus(); }
+    showToast("🏠 House/Flat number required");
+    return;
+  }
+  if (!name) {
+    document.getElementById("addrName")?.focus();
+    showToast("👤 Naam required");
+    return;
+  }
+  if (!/^[6-9]\d{9}$/.test(phone)) {
+    document.getElementById("addrPhone")?.focus();
+    showToast("📱 Valid 10-digit phone number daalo");
+    return;
+  }
 
   // Build full address
   const parts = [floor, locationName, landmark, locationAddr].filter(Boolean);
@@ -1577,7 +1620,7 @@ window.saveAddressDetails = function(locationName, locationAddr) {
   setUserName(name);
   setUserPhone(phone);
 
-  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
   const entry = {
     label, name: locationName, fullAddr: fullAddress,
     floor, landmark, contactName: name, phone,
@@ -1594,7 +1637,9 @@ window.saveAddressDetails = function(locationName, locationAddr) {
     else saved.push(entry);
   }
   window._editingAddrIdx = -1;
-  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved));
+  const _uid = window.zenviAuth?.auth?.currentUser?.uid || "guest";
+  localStorage.setItem("zenvi_addr_" + _uid, JSON.stringify(saved));
+  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved)); // Backward compat
 
   document.getElementById("addressDetailsModal").style.display = "none";
 
@@ -1608,16 +1653,8 @@ window.saveAddressDetails = function(locationName, locationAddr) {
   localStorage.setItem("zenvi_location_name", cleanName);
   localStorage.setItem("zenvi_location_addr", fullAddress);
 
-  // Update header
-  const homeAddrEl = document.getElementById("homeAddress");
-  const locLabelEl = document.getElementById("locLabel");
-  if (homeAddrEl) {
-    homeAddrEl.innerText = floor ? floor + ", " + cleanName : cleanName;
-  }
-  if (locLabelEl) {
-    const icons = {Home:"🏠", Work:"💼", Other:"📍"};
-    locLabelEl.textContent = (icons[label]||"📍") + " " + label;
-  }
+  // Update header - Zomato style
+  updateHeaderLocation(cleanName, label, floor);
 
   // Save to Firebase for recommendations
   if (window.zenviAuth?.auth?.currentUser && window.saveLocationToCloud) {
@@ -1656,7 +1693,7 @@ function showToast(msg, duration = 3000) {
 function restoreSavedLocation() {
   try {
     // First priority: check saved_addresses for Home label
-    const savedAddresses = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+    const savedAddresses = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
     const homeAddr = savedAddresses.find(a => a.label === "Home") || savedAddresses[0];
     
     const saved = localStorage.getItem("zenvi_location");
@@ -1867,7 +1904,7 @@ function setupEvents() {
   // Location section
   document.getElementById("locationSection")?.addEventListener("click", () => {
     // If already have saved addresses, show selector
-    const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+    const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
     if (saved.length > 0) {
       openLocationSelector();
     } else {
@@ -1954,51 +1991,66 @@ function removeAlert(idx) {
 }
 
 function addPriceAlert() {
-  // Create proper modal instead of ugly prompt
   let modal = document.getElementById("alertModal");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "alertModal";
-    document.body.appendChild(modal);
-  }
-  
-  const topItems = marketData.slice(0, 20);
+  if (!modal) { modal = document.createElement("div"); modal.id = "alertModal"; document.body.appendChild(modal); }
+
+  // Show all items with toggle button (like favourites)
+  const topItems = marketData.slice(0, 30);
+  const existingAlerts = priceAlerts.map(a => a.name);
   
   modal.style.cssText = "position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;";
   modal.innerHTML = `
-    <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:24px 20px 40px;">
-      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 20px;"></div>
-      <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;">🔔 Price Alert Set Karein</h3>
-      <p style="font-size:13px;color:#64748b;margin-bottom:16px;">Jab price neeche aaye tab notify karo</p>
-      
-      <div style="margin-bottom:14px;">
-        <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">ITEM CHUNEIN</label>
-        <select id="alertItemSelect" style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;outline:none;">
-          <option value="">-- Item select karein --</option>
-          ${topItems.map(i => `<option value="${i.name}">${i.emoji} ${i.name} (abhi ₹${i.price}/kg)</option>`).join('')}
-        </select>
-      </div>
-      
-      <div style="margin-bottom:20px;">
-        <label style="font-size:12px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">ALERT PRICE (₹/kg)</label>
-        <div style="display:flex;align-items:center;gap:8px;border:1.5px solid #e2e8f0;border-radius:10px;padding:12px;">
-          <span style="font-size:18px;font-weight:800;color:#16a34a;">₹</span>
-          <input id="alertPriceInput" type="number" min="1" max="10000" 
-            placeholder="Kitne price pe alert chahiye?"
-            style="flex:1;border:none;outline:none;font-size:16px;font-weight:700;font-family:inherit;">
-          <span style="color:#64748b;font-size:13px;">/kg</span>
+    <div style="background:white;width:100%;border-radius:24px 24px 0 0;max-height:85vh;overflow-y:auto;">
+      <div style="padding:20px 20px 0;position:sticky;top:0;background:white;z-index:1;border-bottom:1px solid #f1f5f9;">
+        <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 16px;"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <div>
+            <h3 style="font-size:17px;font-weight:800;margin:0;">🔔 Price Alerts</h3>
+            <p style="font-size:12px;color:#64748b;margin:4px 0 0;">Tap item to set alert when price drops</p>
+          </div>
+          <button onclick="document.getElementById('alertModal').style.display='none';"
+            style="background:#f1f5f9;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+            <span class="material-icons-round" style="font-size:18px;">close</span>
+          </button>
         </div>
       </div>
       
-      <div style="display:flex;gap:10px;">
-        <button onclick="document.getElementById('alertModal').style.display='none';"
-          style="flex:1;padding:14px;background:#f1f5f9;color:#64748b;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-          Cancel
-        </button>
-        <button onclick="saveAlertFromModal()"
-          style="flex:2;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;">
-          🔔 Set Alert
-        </button>
+      <!-- Active alerts -->
+      ${priceAlerts.length > 0 ? `
+        <div style="padding:12px 20px 0;">
+          <p style="font-size:11px;font-weight:800;color:#94a3b8;letter-spacing:0.8px;margin:0 0 8px;">ACTIVE ALERTS (${priceAlerts.length})</p>
+          ${priceAlerts.map((alert, i) => `
+            <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f0fdf4;border-radius:12px;margin-bottom:8px;">
+              <span style="font-size:22px;">${alert.emoji}</span>
+              <div style="flex:1;">
+                <p style="font-size:14px;font-weight:700;margin:0;">${alert.name}</p>
+                <p style="font-size:12px;color:#16a34a;margin:0;">Alert below ₹${alert.targetPrice}/kg</p>
+              </div>
+              <button onclick="removeAlert(${i})"
+                style="background:#fee2e2;color:#ef4444;border:none;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
+                Remove
+              </button>
+            </div>`).join('')}
+        </div>
+        <div style="height:1px;background:#f1f5f9;margin:12px 0;"></div>` : ''}
+
+      <!-- Items list to add alert -->
+      <div style="padding:8px 20px 30px;">
+        <p style="font-size:11px;font-weight:800;color:#94a3b8;letter-spacing:0.8px;margin:0 0 10px;">SELECT ITEM FOR ALERT</p>
+        ${topItems.map(item => {
+          const hasAlert = existingAlerts.includes(item.name);
+          return `<div style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;margin-bottom:6px;border:1px solid ${hasAlert?'#bbf7d0':'#f1f5f9'};background:${hasAlert?'#f0fdf4':'white'};">
+            <span style="font-size:22px;">${item.emoji}</span>
+            <div style="flex:1;">
+              <p style="font-size:14px;font-weight:700;margin:0;">${item.name}</p>
+              <p style="font-size:12px;color:#16a34a;margin:0;">₹${item.price}/kg</p>
+            </div>
+            <button onclick="quickSetAlert('${item.name}','${item.emoji}','${item.price}')"
+              style="padding:7px 12px;background:${hasAlert?'#dcfce7':'#f0fdf4'};color:${hasAlert?'#15803d':'#16a34a'};border:1px solid ${hasAlert?'#86efac':'#bbf7d0'};border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">
+              ${hasAlert ? '✓ Set' : '+ Alert'}
+            </button>
+          </div>`;
+        }).join('')}
       </div>
     </div>
   `;
@@ -2164,6 +2216,9 @@ function setupProfileSettings() {
     if (text === "Language" || text === "भाषा") {
       row.addEventListener("click", () => window.openLanguageSelector());
     }
+    if (text === "Market Watch") {
+      row.addEventListener("click", () => openMarketWatch());
+    }
     if (text === "About Zenvi") {
       row.addEventListener("click", () => openAboutModal());
     }
@@ -2174,12 +2229,12 @@ function setupProfileSettings() {
       });
     }
     if (text === "Privacy Policy") {
-      row.addEventListener("click", () => {
-        showToast("🔒 Aapka data secure hai. Koi third party ko share nahi kiya jaata.");
-      });
+      row.addEventListener("click", () => openPrivacyPolicy());
     }
     if (text === "List Your Crop") {
-      row.addEventListener("click", () => showToast("🌾 Coming Soon! Jald aayega."));
+      row.addEventListener("click", () => {
+        showToast("🌾 Coming Soon! Jald aayega — Zenvi Farmer Portal");
+      });
     }
     if (text === "Register Your Shop") {
       row.addEventListener("click", () => showPage("shops"));
@@ -3082,7 +3137,7 @@ function openLocationSelector() {
   }
 
   // Get saved addresses
-  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
   const current = JSON.parse(localStorage.getItem("zenvi_location") || "{}");
   const currentName = localStorage.getItem("zenvi_location_name") || "";
 
@@ -3249,7 +3304,7 @@ function saveFinalLocation(name, addr) {
   localStorage.setItem("zenvi_location_addr", addr);
   const homeAddr = document.getElementById("homeAddress");
   if (homeAddr) {
-    const savedAddresses = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+    const savedAddresses = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
     const matchAddr = savedAddresses.find(a => a.name === name || a.label === "Home");
     homeAddr.innerText = matchAddr?.fullAddr || (addr ? name + ", " + addr.split(",")[0] : name);
   }
@@ -3259,7 +3314,7 @@ function saveFinalLocation(name, addr) {
 
 // Select from saved list
 window.selectSavedAddress = function(idx) {
-  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
   const addr = saved[idx];
   if (!addr) return;
   currentLocation = { lat: addr.lat, lng: addr.lng, name: addr.name, fullAddr: addr.fullAddr || "" };
@@ -3308,17 +3363,19 @@ window.selectSearchResult = function(lat, lng, name, addr, fullAddr) {
 // Save current location as Home/Office
 window.saveAsAddress = function(label) {
   if (!currentLocation?.lat) { showToast("⚠️ Pehle location set karein"); return; }
-  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
   const existing = saved.findIndex(a => a.label === label);
   const entry = { label, ...currentLocation };
   if (existing >= 0) saved[existing] = entry;
   else saved.push(entry);
-  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved));
+  const _uid = window.zenviAuth?.auth?.currentUser?.uid || "guest";
+  localStorage.setItem("zenvi_addr_" + _uid, JSON.stringify(saved));
+  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved)); // Backward compat
   showToast(`✅ ${label} address saved!`);
 };
 
 window.editSavedAddress = function(idx) {
-  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
   const addr = saved[idx];
   if (!addr) return;
   document.getElementById("locationSelectorModal").style.display = "none";
@@ -3422,7 +3479,7 @@ window.selectEALabel = function(label) {
 };
 
 window.saveEditedAddress = function(idx) {
-  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
   if (!saved[idx]) return;
   const floor = document.getElementById("eaFloor")?.value.trim() || "";
   const landmark = document.getElementById("eaLandmark")?.value.trim() || "";
@@ -3440,7 +3497,9 @@ window.saveEditedAddress = function(idx) {
   
   setUserName(name);
   setUserPhone(phone);
-  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved));
+  const _uid = window.zenviAuth?.auth?.currentUser?.uid || "guest";
+  localStorage.setItem("zenvi_addr_" + _uid, JSON.stringify(saved));
+  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved)); // Backward compat
   
   // Update current location display if this is selected
   const currentName = localStorage.getItem("zenvi_location_name");
@@ -3454,7 +3513,7 @@ window.saveEditedAddress = function(idx) {
 };
 
 window.shareSavedAddress = function(idx) {
-  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
   const addr = saved[idx];
   if (!addr) return;
   const text = addr.label + ": " + (addr.fullAddr || addr.name) +
@@ -3469,9 +3528,11 @@ window.shareSavedAddress = function(idx) {
 
 window.deleteSavedAddress = function(idx) {
   if (!confirm("Is address ko delete karein?")) return;
-  const saved = JSON.parse(localStorage.getItem("zenvi_saved_addresses") || "[]");
+  const saved = JSON.parse(localStorage.getItem("zenvi_addr_" + (window.zenviAuth?.auth?.currentUser?.uid || "guest")) || localStorage.getItem("zenvi_saved_addresses") || "[]");
   saved.splice(idx, 1);
-  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved));
+  const _uid = window.zenviAuth?.auth?.currentUser?.uid || "guest";
+  localStorage.setItem("zenvi_addr_" + _uid, JSON.stringify(saved));
+  localStorage.setItem("zenvi_saved_addresses", JSON.stringify(saved)); // Backward compat
   showToast("🗑️ Address deleted!");
   openLocationSelector(); // Refresh
 };
@@ -3996,3 +4057,124 @@ window.showPriceHistory = function(itemName) {
   modal.style.display = "flex";
   modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
 };
+
+window.quickSetAlert = function(name, emoji, currentPrice) {
+  const exists = priceAlerts.find(a => a.name === name);
+  if (exists) { showToast("⚠️ Alert already set for " + name); return; }
+  const target = (parseFloat(currentPrice) * 0.9).toFixed(0); // 10% below current
+  priceAlerts.push({ name, emoji, targetPrice: parseFloat(target), currentPrice });
+  localStorage.setItem('zenvi_alerts', JSON.stringify(priceAlerts));
+  updateProfileStats?.();
+  showToast("🔔 Alert set! " + name + " ₹" + target + " se kam hone pe notify karega");
+  // Refresh modal
+  document.getElementById('alertModal').style.display = 'none';
+  setTimeout(() => addPriceAlert(), 100);
+};
+
+window.removeAlert = function(idx) {
+  priceAlerts.splice(idx, 1);
+  localStorage.setItem('zenvi_alerts', JSON.stringify(priceAlerts));
+  showToast("🔕 Alert removed");
+  document.getElementById('alertModal').style.display = 'none';
+  if (priceAlerts.length > 0 || marketData.length > 0) setTimeout(() => addPriceAlert(), 100);
+};
+
+// ===== PRIVACY POLICY MODAL =====
+function openPrivacyPolicy() {
+  let modal = document.getElementById("privacyModal");
+  if (!modal) { modal = document.createElement("div"); modal.id = "privacyModal"; document.body.appendChild(modal); }
+  modal.style.cssText = "position:fixed;inset:0;z-index:3000;background:white;overflow-y:auto;";
+  modal.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:16px;background:white;border-bottom:1px solid #f1f5f9;position:sticky;top:0;z-index:1;">
+      <button onclick="document.getElementById('privacyModal').style.display='none';" style="background:#f1f5f9;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <span class="material-icons-round" style="font-size:20px;">arrow_back</span>
+      </button>
+      <h2 style="font-size:17px;font-weight:800;margin:0;">Privacy Policy</h2>
+    </div>
+    <div style="padding:20px;max-width:600px;margin:0 auto;">
+      <p style="font-size:12px;color:#94a3b8;margin-bottom:20px;">Last updated: March 2026</p>
+      
+      ${[
+        ["🔒","Data Collection","Zenvi sirf wahi data collect karta hai jo app ke liye zaroori hai — location, naam, aur phone number. Koi bhi sensitive personal data store nahi kiya jaata."],
+        ["📍","Location Data","Aapki location sirf mandi prices aur nearby shops dikhane ke liye use hoti hai. Location data third parties ke saath share nahi kiya jaata."],
+        ["☁️","Firebase Storage","Aapka data Google Firebase (secure cloud) mein store hota hai. Sirf aap apna data dekh sakte hain."],
+        ["🤝","Third Party Sharing","Zenvi kabhi bhi aapka personal data sell ya share nahi karta — na advertisers ko, na kisi aur ko."],
+        ["🛡️","Data Security","Sab data HTTPS encryption ke through transfer hota hai. Firebase Security Rules se protected hai."],
+        ["🗑️","Data Deletion","Aap kabhi bhi account delete kar sakte hain. Email karein: zenvi.support@gmail.com"],
+        ["📱","Permissions Used","Location (mandi dhundhne ke liye), Camera (shop photo ke liye — optional), Microphone (voice search ke liye — optional)"],
+      ].map(([icon, title, text]) => `
+        <div style="background:#f8fafc;border-radius:14px;padding:16px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span style="font-size:20px;">${icon}</span>
+            <p style="font-size:14px;font-weight:800;color:#1e293b;margin:0;">${title}</p>
+          </div>
+          <p style="font-size:13px;color:#64748b;margin:0;line-height:1.6;">${text}</p>
+        </div>`).join('')}
+
+      <div style="background:#f0fdf4;border-radius:14px;padding:16px;margin-top:8px;text-align:center;">
+        <p style="font-size:13px;color:#16a34a;font-weight:600;margin:0 0 8px;">Questions? Contact us</p>
+        <a href="mailto:zenvi.support@gmail.com" style="font-size:14px;color:#16a34a;font-weight:800;text-decoration:none;">zenvi.support@gmail.com</a>
+      </div>
+      <p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:20px;">© 2026 Zenvi — Made with ❤️ in India 🇮🇳</p>
+    </div>
+  `;
+  modal.style.display = "block";
+}
+
+// ===== MARKET WATCH MODAL =====
+function openMarketWatch() {
+  const up = marketData.filter(i => i.trend === "up").slice(0,8);
+  const down = marketData.filter(i => i.trend === "down").slice(0,8);
+  const stable = marketData.filter(i => i.trend === "stable").slice(0,5);
+
+  let modal = document.getElementById("marketWatchModal");
+  if (!modal) { modal = document.createElement("div"); modal.id = "marketWatchModal"; document.body.appendChild(modal); }
+
+  modal.style.cssText = "position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,0.5);display:flex;align-items:flex-end;";
+  modal.innerHTML = `
+    <div style="background:white;width:100%;border-radius:24px 24px 0 0;max-height:85vh;overflow-y:auto;padding:24px 20px 40px;">
+      <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 20px;"></div>
+      <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;">📊 Market Watch</h3>
+      <p style="font-size:13px;color:#64748b;margin-bottom:20px;">${marketData.length} items tracked · Updated today</p>
+
+      <!-- Stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
+        <div style="background:#fef2f2;border-radius:12px;padding:12px;text-align:center;">
+          <p style="font-size:22px;font-weight:800;color:#ef4444;margin:0;">${up.length}</p>
+          <p style="font-size:11px;color:#ef4444;margin:0;">📈 Rising</p>
+        </div>
+        <div style="background:#f0fdf4;border-radius:12px;padding:12px;text-align:center;">
+          <p style="font-size:22px;font-weight:800;color:#16a34a;margin:0;">${down.length}</p>
+          <p style="font-size:11px;color:#16a34a;margin:0;">📉 Falling</p>
+        </div>
+        <div style="background:#f8fafc;border-radius:12px;padding:12px;text-align:center;">
+          <p style="font-size:22px;font-weight:800;color:#64748b;margin:0;">${stable.length}</p>
+          <p style="font-size:11px;color:#64748b;margin:0;">➡️ Stable</p>
+        </div>
+      </div>
+
+      ${up.length > 0 ? `
+        <p style="font-size:12px;font-weight:800;color:#ef4444;letter-spacing:0.5px;margin:0 0 8px;">📈 PRICE RISING</p>
+        ${up.map(i => `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#fff5f5;border-radius:10px;margin-bottom:6px;">
+          <span style="font-size:20px;">${i.emoji}</span>
+          <div style="flex:1;"><p style="font-size:13px;font-weight:700;margin:0;">${i.name}</p></div>
+          <p style="font-size:14px;font-weight:800;color:#ef4444;margin:0;">₹${i.price}</p>
+        </div>`).join('')}` : ''}
+
+      ${down.length > 0 ? `
+        <p style="font-size:12px;font-weight:800;color:#16a34a;letter-spacing:0.5px;margin:12px 0 8px;">📉 PRICE FALLING</p>
+        ${down.map(i => `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:#f0fdf4;border-radius:10px;margin-bottom:6px;">
+          <span style="font-size:20px;">${i.emoji}</span>
+          <div style="flex:1;"><p style="font-size:13px;font-weight:700;margin:0;">${i.name}</p></div>
+          <p style="font-size:14px;font-weight:800;color:#16a34a;margin:0;">₹${i.price}</p>
+        </div>`).join('')}` : ''}
+
+      <button onclick="document.getElementById('marketWatchModal').style.display='none';"
+        style="width:100%;margin-top:16px;padding:14px;background:#16a34a;color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;">
+        Close
+      </button>
+    </div>
+  `;
+  modal.style.display = "flex";
+  modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
+}
