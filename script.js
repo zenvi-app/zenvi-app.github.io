@@ -1379,36 +1379,26 @@ function confirmAndProceed() {
     return;
   }
 
-  const shown = (document.getElementById("selectedLocationName")?.textContent || "").trim();
-  const shownAddr = (document.getElementById("selectedLocationAddress")?.textContent || "").trim();
+  const nameEl = document.getElementById("selectedLocationName");
+  const name = (nameEl?.textContent || "").trim();
 
-  const SKIP = new Set(["📍 Dhundh raha hai...","Map pe location chunein...",
-    "Location selected ✓","Map drag karo ya search karein","Selected Area",
-    "My Location","Meri Location","My Area","Selecting...",""]);
-
-  const good = n => n && n.length > 2 && !SKIP.has(n) && !isCoordinateString(n);
-
-  let name = good(shown) ? shown : good(currentLocation.name) ? currentLocation.name : "";
-  let addr = (!SKIP.has(shownAddr) && shownAddr) ? shownAddr : (currentLocation.fullAddr || "");
-
-  // If geocode still loading, wait a bit then auto-proceed
-  if (!name) {
-    const btn = document.getElementById("confirmBtn");
-    if (btn) btn.innerHTML = "⏳ Loading...";
-    setTimeout(() => {
-      const n2 = (document.getElementById("selectedLocationName")?.textContent || "").trim();
-      if (btn) btn.innerHTML = "📍 Confirm Location";
-      currentLocation.name = good(n2) ? n2 : `Location (${currentLocation.lat.toFixed(3)}, ${currentLocation.lng.toFixed(3)})`;
-      confirmAndProceed();
-    }, 1500);
+  // Block only if still loading
+  if (!name || name === "📍 Dhundh raha hai..." || name.includes("Dhundh raha")) {
+    showToast("⏳ Location naam aa raha hai... 1 second ruko");
+    setTimeout(() => confirmAndProceed(), 1000);
     return;
   }
 
-  currentLocation.name = name;
-  currentLocation.fullAddr = addr;
+  // Use real name, never "Map pe location chunein..."
+  const INVALID = new Set(["Map pe location chunein...","Map drag karo ya search karein",
+    "Location selected ✓","","Selecting..."]);
+  const finalName = !INVALID.has(name) ? name : (currentLocation.name || "Selected Location");
 
-  // Show address details form
-  showAddressDetailsForm(name, addr);
+  currentLocation.name = finalName;
+  currentLocation.fullAddr = (document.getElementById("selectedLocationAddress")?.textContent || 
+                               currentLocation.fullAddr || "");
+
+  showAddressDetailsForm(finalName, currentLocation.fullAddr);
 }
 
 
@@ -3004,17 +2994,17 @@ window.submitShopRating = async function(shopId, shopName) {
   const user = window.zenviAuth?.auth?.currentUser;
   const uid = user?.uid || "guest";
 
-  // Check if user already rated this shop
-  const userRatings = JSON.parse(localStorage.getItem("zenvi_user_ratings") || "{}");
+  // Check per-user rating (uid-specific)
+  const _rKey = "zenvi_user_ratings_" + user.uid;
+  const userRatings = JSON.parse(localStorage.getItem(_rKey) || "{}");
   if (userRatings[shopId]) {
-    showToast("⚠️ Aap pehle se is shop ko rate kar chuke hain!");
-    document.getElementById("rateShopModal").style.display = "none";
+    showToast("⚠️ Aap is account se pehle hi rating de chuke hain!");
     return;
   }
 
   // Mark user as rated
   userRatings[shopId] = { stars, ratedAt: Date.now() };
-  localStorage.setItem("zenvi_user_ratings", JSON.stringify(userRatings));
+  localStorage.setItem("zenvi_user_ratings_" + uid, JSON.stringify(userRatings));
 
   // Save/update ratings
   const ratings = JSON.parse(localStorage.getItem("zenvi_shop_ratings") || "{}");
@@ -3702,6 +3692,16 @@ window.saveShopItems = function(shopId) {
     shops[idx].items = items;
     localStorage.setItem("zenvi_shops", JSON.stringify(shops));
     window._shopsData = shops;
+    
+    // Update Firebase if shop has id
+    if (window.zenviDB && shops[idx].id) {
+      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js")
+        .then(({ doc, updateDoc }) => {
+          updateDoc(doc(window.zenviDB, "shops", shops[idx].id), { items })
+            .catch(e => console.warn("Firebase items:", e));
+        });
+    }
+    
     showToast("✅ Items saved! Ab shop mein dikh rahe hain.");
     document.getElementById("addItemsShopModal").style.display = "none";
     setTimeout(() => window.viewShopDetail(shops[idx]), 300);
