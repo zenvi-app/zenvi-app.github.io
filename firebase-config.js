@@ -26,6 +26,21 @@ try {
   provider.addScope('email');
   console.log("🔐 Firebase initialized ✅");
 } catch (e) { console.error("Firebase init error:", e.message); }
+window.verifyPhone = function() {
+  const phoneEl = document.getElementById("addrPhone");
+  if (!phoneEl) return false;
+  const phone = phoneEl.value.replace(/\D/g, "").trim();
+  const allSame = /^(\d)\1{9}$/.test(phone);
+  if (phone.length !== 10 || !/^[6-9]/.test(phone) || allSame) {
+    if (window.showToast) window.showToast("❌ Valid 10-digit Indian mobile required");
+    phoneEl.style.borderColor = "#ef4444";
+    return false;
+  }
+  phoneEl.style.borderColor = "#16a34a";
+  if (window.showToast) window.showToast("✅ Phone valid!");
+  return true;
+};
+
 
 window.firebaseReady = (app !== undefined);
 window.zenviAuth = { auth, provider };
@@ -69,6 +84,12 @@ async function loadUserData(user) {
         localStorage.setItem("zenvi_location_name", data.location.name);
         const el = document.getElementById("homeAddress");
         if (el) el.innerText = data.location.name;
+      }
+      // Sync saved addresses from cloud
+      if (data.savedAddresses && data.savedAddresses.length > 0) {
+        const uid = user.uid;
+        localStorage.setItem("zenvi_addr_" + uid, JSON.stringify(data.savedAddresses));
+        localStorage.setItem("zenvi_saved_addresses", JSON.stringify(data.savedAddresses));
       }
     }
   } catch(e) { console.warn("Firestore load failed:", e.message); }
@@ -382,8 +403,10 @@ window.logout = function() {
     // Keep phone & username on device (user wants them persistent)
     // Only clear session
     sessionStorage.removeItem("zenvi_launched");
+    sessionStorage.removeItem("zenvi_state");
     resetProfileUI();
     if (window.showToast) window.showToast("👋 Logged out safely!");
+    setTimeout(() => window.location.reload(), 800);
   }).catch(console.error);
 };
 
@@ -428,7 +451,8 @@ window.saveShopToFirebase = async function(shopData) {
     console.log("☁️ Shop saved to Firebase:", shopData.name);
     return true;
   } catch(e) {
-    console.warn("Shop Firebase save failed:", e.message);
+    console.error("❌ Shop Firebase save failed:", e.message);
+    if (window.showToast) window.showToast("❌ Cloud save failed. Shop saved locally.");
     return false;
   }
 };

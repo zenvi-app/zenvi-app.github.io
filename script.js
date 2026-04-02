@@ -196,7 +196,7 @@ window.openSuggestPrice = function(itemName, currentPrice) {
   }
 
   modal.innerHTML = `
-    <div style="background:white;width:100%;border-radius:24px 24px 0 0;padding:24px 20px 40px;">
+    <div style="background:var(--sheet-bg,white);width:100%;border-radius:24px 24px 0 0;padding:24px 20px 40px;">
       <div style="width:40px;height:4px;background:#e2e8f0;border-radius:99px;margin:0 auto 20px;"></div>
       <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;">✏️ Price Suggest Karein</h3>
       <p style="font-size:13px;color:#64748b;margin-bottom:20px;">${itemName} — Aaj aapne kya rate dekha?</p>
@@ -2375,6 +2375,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   setupSearch();
   setupEvents();
+  applyLanguage(); // Restore language on reload
   console.log("✅ Zenvi ready! Page:", lastPage);
 });
 
@@ -2921,11 +2922,18 @@ window.openRateShop = function(shopId, shopName) {
     return;
   }
   // Block owner from rating own shop
-  // Block owner from rating own shop
   const shops = window._shopsData || JSON.parse(localStorage.getItem("zenvi_shops") || "[]");
   const shop = shops.find(s => s.id === shopId || s.name === shopName);
   if (shop && shop.submittedBy === user.uid) {
     showToast("❌ Aap apni khud ki shop ko rate nahi kar sakte!");
+    return;
+  }
+
+  // Block if already rated from this account
+  const rKey = "zenvi_user_ratings_" + user.uid;
+  const userRatings = JSON.parse(localStorage.getItem(rKey) || "{}");
+  if (userRatings[shopId]) {
+    showToast("⚠️ Aap is account se pehle hi rating de chuke hain! (" + userRatings[shopId].stars + "⭐)");
     return;
   }
 
@@ -2992,11 +3000,12 @@ window.submitShopRating = async function(shopId, shopName) {
 
   const comment = document.getElementById("ratingComment")?.value.trim();
   const user = window.zenviAuth?.auth?.currentUser;
-  const uid = user?.uid || "guest";
+  if (!user) { showToast("⚠️ Rating dene ke liye pehle login karein!"); return; }
+  const uid = user.uid;
 
-  // Check per-user rating (uid-specific)
-  const _rKey = "zenvi_user_ratings_" + user.uid;
-  const userRatings = JSON.parse(localStorage.getItem(_rKey) || "{}");
+  // Check per-user rating (uid-specific) — one rating per account
+  const rKey = "zenvi_user_ratings_" + uid;
+  const userRatings = JSON.parse(localStorage.getItem(rKey) || "{}");
   if (userRatings[shopId]) {
     showToast("⚠️ Aap is account se pehle hi rating de chuke hain!");
     return;
@@ -3004,7 +3013,7 @@ window.submitShopRating = async function(shopId, shopName) {
 
   // Mark user as rated
   userRatings[shopId] = { stars, ratedAt: Date.now() };
-  localStorage.setItem("zenvi_user_ratings_" + uid, JSON.stringify(userRatings));
+  localStorage.setItem(rKey, JSON.stringify(userRatings));
 
   // Save/update ratings
   const ratings = JSON.parse(localStorage.getItem("zenvi_shop_ratings") || "{}");
@@ -3881,6 +3890,13 @@ function applyLanguage() {
     }
   });
   
+  // Update language label in settings
+  const langLabel = document.getElementById("currentLangLabel");
+  if (langLabel) langLabel.textContent = currentLang === 'en' ? 'English' : 'हिंदी';
+
+  // Update html lang attribute
+  document.documentElement.lang = currentLang === 'en' ? 'en' : 'hi';
+
   // Re-render items to update trend labels
   if (marketData.length > 0) renderItems(marketData);
 }

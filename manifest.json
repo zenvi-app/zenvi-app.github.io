@@ -57,8 +57,8 @@
       "icons": [{ "src": "assets/icon.png", "sizes": "192x192" }]
     },
     {
-      "name": "Zenvi AI",
-      "short_name": "AI",
+      "name": "AI Assistant",
+      "short_name": "Zenvi AI",
       "description": "Mandi ke baare mein AI se poochein",
       "url": "./index.html",
       "icons": [{ "src": "assets/icon.png", "sizes": "192x192" }]

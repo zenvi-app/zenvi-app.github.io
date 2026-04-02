@@ -1046,6 +1046,8 @@ body.dark-mode .quick-chips { background: #1e293b; }
 body.dark-mode .chip { background: #334155; border-color: #475569; color: #cbd5e1; }
 
 /* Profile (Zomato style) */
+body.dark-mode { --sheet-bg: #1e293b; --sheet-text: #f1f5f9; --sheet-sub: #94a3b8; --sheet-border: #334155; }
+body { --sheet-bg: white; --sheet-text: #1e293b; --sheet-sub: #64748b; --sheet-border: #e2e8f0; }
 body.dark-mode .zp-header { background: #1e293b; border-color: #334155; }
 body.dark-mode .zp-title { color: #f1f5f9; }
 body.dark-mode .zp-user-card { background: #1e293b; }
